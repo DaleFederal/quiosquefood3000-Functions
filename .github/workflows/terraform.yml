@@ -57,13 +57,15 @@ jobs:
       - name: Import existing resources
         run: |
           cd terraform
+
           terraform import google_storage_bucket.function_bucket ${{ env.BUCKET_NAME }} || true
           terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer || true
           terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer || true
           terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer || true
           terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer || true
           terraform import google_bigquery_dataset.dataset ${{ env.DATASET_ID }} || true
-          terraform import google_bigquery_table.customers ${{ env.DATASET_ID }}.${{ env.TABLE_ID }} || true # Adicione esta linha
+          terraform import google_bigquery_table.customers ${{ env.DATASET_ID }}.${{ env.TABLE_ID }}
+          terraform state list
 
       - name: Terraform Plan Infrastructure
         run: terraform -chdir=terraform plan -target=google_storage_bucket.function_bucket
