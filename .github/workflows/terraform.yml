@@ -19,6 +19,7 @@ jobs:
       BUCKET_NAME: function-bucket-quiosquefood
       PROJECT_ID: ${{ secrets.GCP_PROJECT || 'quiosquefood3000' }}
       DATASET_ID: QuiosqueFood
+      TABLE_ID: customers
 
     steps:
       - name: Checkout repository
@@ -62,6 +63,7 @@ jobs:
           terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer || true
           terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer || true
           terraform import google_bigquery_dataset.dataset ${{ env.DATASET_ID }} || true
+          terraform import google_bigquery_table.customers ${{ env.DATASET_ID }}.${{ env.TABLE_ID }} || true # Adicione esta linha
 
       - name: Terraform Plan Infrastructure
         run: terraform -chdir=terraform plan -target=google_storage_bucket.function_bucket
