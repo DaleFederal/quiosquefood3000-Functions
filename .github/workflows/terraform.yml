@@ -1,0 +1,38 @@
+name: Deploy Terraform - Google Cloud Functions
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'QuiosqueFood3000-Functions/**'
+      - '.github/workflows/deploy-terraform-gcf.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
+    - name: Set up Terraform
+      uses: hashicorp/setup-terraform@v2
+      with:
+        terraform_version: 1.6.6
+
+    - name: Initialize Terraform
+      run: terraform -chdir=terraform init
+
+    - name: Validate Terraform
+      run: terraform -chdir=terraform validate
+
+    - name: Plan Terraform
+      run: terraform -chdir=terraform plan
+
+    - name: Apply Terraform
+      run: terraform -chdir=terraform apply -auto-approve
