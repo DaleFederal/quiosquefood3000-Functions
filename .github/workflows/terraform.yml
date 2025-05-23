@@ -1,43 +1,52 @@
-name: Deploy Terraform - Google Cloud Functions
+name: Build and Upload Function Zip
 
 on:
-  workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches:
+      - main
     paths:
-      - 'QuiosqueFood3000-Functions/**'
-      - '.github/workflows/deploy-terraform-gcf.yml'
+      - 'functions/**'
+      - '.github/workflows/package-functions.yml'
+  workflow_dispatch:
 
 jobs:
-  deploy:
+  build-zip:
     runs-on: ubuntu-latest
 
+    env:
+      ZIP_NAME: function-source.zip
+      BUCKET_NAME: function-bucket-${{ secrets.BUCKET_SUFFIX }}
+      PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+
     steps:
-    - name: Checkout repo
-      uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
 
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v2
-      with:
-        terraform_version: 1.6.6
+      - name: Install dependencies
+        run: |
+          cd functions
+          npm ci || true  # Ignora se não houver node_modules global
 
-    - name: Initialize Terraform
-      working-directory: infra
-      run: terraform init
+      - name: Create ZIP
+        run: |
+          cd functions
+          zip -r ../${{ env.ZIP_NAME }} .
 
-    - name: Validate Terraform
-      working-directory: infra
-      run: terraform validate
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-    - name: Plan Terraform
-      working-directory: infra
-      run: terraform plan
+      - name: Upload ZIP to GCS
+        uses: google-github-actions/upload-cloud-storage@v1
+        with:
+          path: ${{ env.ZIP_NAME }}
+          destination: gs://${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
 
-    - name: Apply Terraform
-      working-directory: infra
-      run: terraform apply -auto-approve
+      - name: Output result
+        run: echo "Zip uploaded to gs://${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}"
