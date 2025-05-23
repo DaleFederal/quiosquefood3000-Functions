@@ -12,7 +12,7 @@ provider "google" {
   region  = var.region
 }
 
-# ✅ Bucket fixo para os arquivos ZIP das funções
+# ✅ Bucket para os arquivos ZIP das funções
 resource "google_storage_bucket" "function_bucket" {
   name          = var.bucket_name
   location      = var.region
@@ -40,10 +40,20 @@ resource "google_bigquery_table" "customers" {
   ])
 }
 
-# ✅ O arquivo ZIP será enviado pelo GitHub Actions
-# Não precisamos de data source, apenas referenciaremos diretamente
+# ✅ Pub/Sub Topic
+resource "google_pubsub_topic" "customer_topic" {
+  name    = "customer"
+  project = var.project_id
+}
 
-# ✅ Função - Create Customer
+# ✅ Objeto ZIP no bucket (arquivo enviado pelo GitHub Actions)
+resource "google_storage_bucket_object" "function_archive" {
+  name   = var.zip_object
+  bucket = google_storage_bucket.function_bucket.name
+  source = var.zip_object
+}
+
+# ✅ Função HTTP - Create
 resource "google_cloudfunctions_function" "create_customer" {
   name                  = "create-customer"
   runtime               = "nodejs20"
@@ -52,18 +62,18 @@ resource "google_cloudfunctions_function" "create_customer" {
   entry_point           = "criarCustomer"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = var.zip_object
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
+    TOPIC   = google_pubsub_topic.customer_topic.name
   }
 
-  # Garantir que o bucket existe antes de criar a função
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# ✅ Função - Get Customer
+# ✅ Função HTTP - Get
 resource "google_cloudfunctions_function" "get_customer" {
   name                  = "get-customer"
   runtime               = "nodejs20"
@@ -72,17 +82,18 @@ resource "google_cloudfunctions_function" "get_customer" {
   entry_point           = "pesquisarCustomerPorCpf"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = var.zip_object
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
+    TOPIC   = google_pubsub_topic.customer_topic.name
   }
 
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# ✅ Função - Update Customer
+# ✅ Função HTTP - Update
 resource "google_cloudfunctions_function" "update_customer" {
   name                  = "update-customer"
   runtime               = "nodejs20"
@@ -91,17 +102,18 @@ resource "google_cloudfunctions_function" "update_customer" {
   entry_point           = "editarCustomerPorCpf"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = var.zip_object
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
+    TOPIC   = google_pubsub_topic.customer_topic.name
   }
 
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# ✅ Função - Delete Customer
+# ✅ Função HTTP - Delete
 resource "google_cloudfunctions_function" "delete_customer" {
   name                  = "delete-customer"
   runtime               = "nodejs20"
@@ -110,11 +122,36 @@ resource "google_cloudfunctions_function" "delete_customer" {
   entry_point           = "excluirCustomerPorCpf"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = var.zip_object
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
+    TOPIC   = google_pubsub_topic.customer_topic.name
+  }
+
+  depends_on = [google_storage_bucket.function_bucket]
+}
+
+# ✅ Função acionada por Pub/Sub
+resource "google_cloudfunctions_function" "customer_pubsub_messenger" {
+  name                  = "customer-pubsub-messenger"
+  runtime               = "nodejs20"
+  available_memory_mb   = 256
+  entry_point           = "customerPubSubMessenger"
+
+  source_archive_bucket = google_storage_bucket.function_bucket.name
+  source_archive_object = google_storage_bucket_object.function_archive.name
+
+  event_trigger {
+    event_type = "google.pubsub.topic.publish"
+    resource   = google_pubsub_topic.customer_topic.id
+  }
+
+  environment_variables = {
+    DATASET = google_bigquery_dataset.dataset.dataset_id
+    TABLE   = google_bigquery_table.customers.table_id
+    TOPIC   = google_pubsub_topic.customer_topic.name
   }
 
   depends_on = [google_storage_bucket.function_bucket]
