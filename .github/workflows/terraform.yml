@@ -47,7 +47,7 @@ jobs:
         uses: google-github-actions/upload-cloud-storage@v1
         with:
           path: ${{ env.ZIP_NAME }}
-          destination: gs://${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
+          destination: ${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
