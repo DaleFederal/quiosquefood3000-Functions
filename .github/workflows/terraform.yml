@@ -15,11 +15,10 @@ jobs:
       id-token: write
 
     env:
-      ZIP_NAME: function-source.zip
-      BUCKET_NAME: function-bucket-quiosquefood
       PROJECT_ID: ${{ secrets.GCP_PROJECT || 'quiosquefood3000' }}
       DATASET_ID: QuiosqueFood
       TABLE_ID: customers
+      BUCKET_NAME: function-bucket-quiosquefood
 
     steps:
       - name: Checkout repository
@@ -33,12 +32,31 @@ jobs:
       - name: Install dependencies
         run: |
           cd functions
-          npm ci || true
+          npm ci
+
+      - name: Generate unique ZIP name with timestamp and commit
+        id: zip-name
+        run: |
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          COMMIT_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          ZIP_NAME="function-source-${TIMESTAMP}-${COMMIT_SHORT}.zip"
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_OUTPUT
+          echo "Generated ZIP name: ${ZIP_NAME}"
 
       - name: Create ZIP package
         run: |
           cd functions
-          zip -r ../${{ env.ZIP_NAME }} .
+          # Remove any existing ZIP files
+          rm -f ../*.zip
+          # Create new ZIP with all function files
+          zip -r ../${{ steps.zip-name.outputs.ZIP_NAME }} . -x "node_modules/*" "*.git*" "*.DS_Store*"
+          
+      - name: Verify ZIP contents
+        run: |
+          echo "ZIP file size:"
+          ls -lh ${{ steps.zip-name.outputs.ZIP_NAME }}
+          echo "ZIP contents:"
+          unzip -l ${{ steps.zip-name.outputs.ZIP_NAME }}
 
       - name: Authenticate with Google Cloud
         uses: google-github-actions/auth@v2
@@ -54,42 +72,66 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      - name: Import existing resources
+      - name: Import existing resources (ignore errors)
         run: |
           cd terraform
-          terraform import google_storage_bucket.function_bucket ${{ env.BUCKET_NAME }} || true
-          terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer || true
-          terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer || true
-          terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer || true
-          terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer || true
-          terraform import google_cloudfunctions_function.customer_pubsub_messenger projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/customer-pubsub-messenger || true
-          terraform import google_bigquery_dataset.dataset ${{ env.DATASET_ID }} || true
-          terraform import google_bigquery_table.customers projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }} || true
-          terraform import google_pubsub_topic.customer_topic ${{ env.PROJECT_ID }}/customer || true
+          set +e  # Continue on errors
+          terraform import google_storage_bucket.function_bucket ${{ env.BUCKET_NAME }}
+          terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer
+          terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer
+          terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer
+          terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer
+          terraform import google_cloudfunctions_function.customer_pubsub_messenger projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/customer-pubsub-messenger
+          terraform import google_bigquery_dataset.dataset ${{ env.DATASET_ID }}
+          terraform import google_bigquery_table.customers projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}
+          terraform import google_pubsub_topic.customer_topic projects/${{ env.PROJECT_ID }}/topics/customer
+          set -e  # Re-enable exit on error
+          echo "Import completed (some may have failed, which is normal)"
 
-          terraform state list
-
-
-      - name: Terraform Plan Infrastructure
-        run: terraform -chdir=terraform plan -target=google_storage_bucket.function_bucket
-
-      - name: Terraform Apply Infrastructure
-        run: terraform -chdir=terraform apply -target=google_storage_bucket.function_bucket -auto-approve
-
-      - name: Upload ZIP to Google Cloud Storage
-        uses: google-github-actions/upload-cloud-storage@v1
-        with:
-          path: ${{ env.ZIP_NAME }}
-          destination: ${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
-          gzip: false
-          resumable: true
+      - name: Upload new ZIP to Google Cloud Storage
+        run: |
+          # Remove old ZIP files from bucket
+          gsutil -m rm gs://${{ env.BUCKET_NAME }}/function-source*.zip || true
+          
+          # Upload new ZIP
+          gsutil cp ${{ steps.zip-name.outputs.ZIP_NAME }} gs://${{ env.BUCKET_NAME }}/
 
       - name: Verify ZIP upload
         run: |
-          gsutil ls gs://${{ env.BUCKET_NAME }}/
+          echo "Current bucket contents:"
+          gsutil ls -l gs://${{ env.BUCKET_NAME }}/
 
-      - name: Terraform Plan Complete
-        run: terraform -chdir=terraform plan
+      - name: Update Terraform variables
+        run: |
+          cd terraform
+          # Create or update terraform.tfvars with new ZIP name
+          cat > terraform.tfvars << EOF
+          project_id = "${{ env.PROJECT_ID }}"
+          region = "us-central1"
+          bucket_name = "${{ env.BUCKET_NAME }}"
+          zip_object = "${{ steps.zip-name.outputs.ZIP_NAME }}"
+          EOF
+          
+          echo "Terraform variables:"
+          cat terraform.tfvars
 
-      - name: Terraform Apply Complete
-        run: terraform -chdir=terraform apply -auto-approve
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan -var-file=terraform.tfvars
+
+      - name: Terraform Apply
+        run: |
+          cd terraform
+          terraform apply -var-file=terraform.tfvars -auto-approve
+
+      - name: Verify deployment
+        run: |
+          echo "Listing Cloud Functions:"
+          gcloud functions list
+          
+          echo "Checking PubSub topics:"
+          gcloud pubsub topics list
+          
+          echo "Testing create-customer function (if accessible):"
+          gcloud functions describe create-customer || echo "Function not found or not accessible"
