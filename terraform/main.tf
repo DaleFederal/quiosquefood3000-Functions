@@ -12,7 +12,6 @@ provider "google" {
   region  = var.region
 }
 
-# ✅ Bucket para os arquivos ZIP das funções
 resource "google_storage_bucket" "function_bucket" {
   name          = var.bucket_name
   location      = var.region
@@ -21,13 +20,11 @@ resource "google_storage_bucket" "function_bucket" {
   uniform_bucket_level_access = true
 }
 
-# ✅ Dataset BigQuery
 resource "google_bigquery_dataset" "dataset" {
   dataset_id = "QuiosqueFood"
   location   = "US"
 }
 
-# ✅ Tabela BigQuery
 resource "google_bigquery_table" "customers" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "customers"
@@ -40,20 +37,17 @@ resource "google_bigquery_table" "customers" {
   ])
 }
 
-# ✅ Pub/Sub Topic
 resource "google_pubsub_topic" "customer_topic" {
   name    = "customer"
   project = var.project_id
 }
 
-# ✅ Objeto ZIP no bucket (arquivo enviado pelo GitHub Actions)
 resource "google_storage_bucket_object" "function_archive" {
   name   = var.zip_object
   bucket = google_storage_bucket.function_bucket.name
-  source = var.zip_object
+  source = "../${var.zip_object}"
 }
 
-# ✅ Função HTTP - Create
 resource "google_cloudfunctions_function" "create_customer" {
   name                  = "create-customer"
   runtime               = "nodejs20"
@@ -73,7 +67,6 @@ resource "google_cloudfunctions_function" "create_customer" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# ✅ Função HTTP - Get
 resource "google_cloudfunctions_function" "get_customer" {
   name                  = "get-customer"
   runtime               = "nodejs20"
@@ -93,7 +86,6 @@ resource "google_cloudfunctions_function" "get_customer" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# ✅ Função HTTP - Update
 resource "google_cloudfunctions_function" "update_customer" {
   name                  = "update-customer"
   runtime               = "nodejs20"
@@ -113,7 +105,6 @@ resource "google_cloudfunctions_function" "update_customer" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# ✅ Função HTTP - Delete
 resource "google_cloudfunctions_function" "delete_customer" {
   name                  = "delete-customer"
   runtime               = "nodejs20"
@@ -133,7 +124,6 @@ resource "google_cloudfunctions_function" "delete_customer" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# ✅ Função acionada por Pub/Sub
 resource "google_cloudfunctions_function" "customer_pubsub_messenger" {
   name                  = "customer-pubsub-messenger"
   runtime               = "nodejs20"
