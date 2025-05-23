@@ -40,11 +40,14 @@ resource "google_bigquery_table" "customers" {
   ])
 }
 
-# ✅ Arquivo ZIP da função (é gerado e enviado pelo GitHub Actions)
-resource "google_storage_bucket_object" "function_archive" {
+# ✅ Referência ao arquivo ZIP (que será enviado pelo GitHub Actions)
+# Removemos o 'source' porque o arquivo será enviado pelo workflow
+data "google_storage_bucket_object" "function_archive" {
   name   = var.zip_object
   bucket = google_storage_bucket.function_bucket.name
-  source = var.zip_object
+  
+  # Dependência para garantir que o bucket existe antes de referenciar o objeto
+  depends_on = [google_storage_bucket.function_bucket]
 }
 
 # ✅ Função - Create Customer
@@ -56,12 +59,15 @@ resource "google_cloudfunctions_function" "create_customer" {
   entry_point           = "criarCustomer"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
+  source_archive_object = var.zip_object
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
   }
+
+  # Garantir que o arquivo existe antes de criar a função
+  depends_on = [data.google_storage_bucket_object.function_archive]
 }
 
 # ✅ Função - Get Customer
@@ -73,12 +79,14 @@ resource "google_cloudfunctions_function" "get_customer" {
   entry_point           = "pesquisarCustomerPorCpf"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
+  source_archive_object = var.zip_object
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
   }
+
+  depends_on = [data.google_storage_bucket_object.function_archive]
 }
 
 # ✅ Função - Update Customer
@@ -90,12 +98,14 @@ resource "google_cloudfunctions_function" "update_customer" {
   entry_point           = "editarCustomerPorCpf"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
+  source_archive_object = var.zip_object
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
   }
+
+  depends_on = [data.google_storage_bucket_object.function_archive]
 }
 
 # ✅ Função - Delete Customer
@@ -107,10 +117,12 @@ resource "google_cloudfunctions_function" "delete_customer" {
   entry_point           = "excluirCustomerPorCpf"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
+  source_archive_object = var.zip_object
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
     TABLE   = google_bigquery_table.customers.table_id
   }
+
+  depends_on = [data.google_storage_bucket_object.function_archive]
 }
