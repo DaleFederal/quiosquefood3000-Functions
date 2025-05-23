@@ -40,15 +40,8 @@ resource "google_bigquery_table" "customers" {
   ])
 }
 
-# ✅ Referência ao arquivo ZIP (que será enviado pelo GitHub Actions)
-# Removemos o 'source' porque o arquivo será enviado pelo workflow
-data "google_storage_bucket_object" "function_archive" {
-  name   = var.zip_object
-  bucket = google_storage_bucket.function_bucket.name
-  
-  # Dependência para garantir que o bucket existe antes de referenciar o objeto
-  depends_on = [google_storage_bucket.function_bucket]
-}
+# ✅ O arquivo ZIP será enviado pelo GitHub Actions
+# Não precisamos de data source, apenas referenciaremos diretamente
 
 # ✅ Função - Create Customer
 resource "google_cloudfunctions_function" "create_customer" {
@@ -66,8 +59,8 @@ resource "google_cloudfunctions_function" "create_customer" {
     TABLE   = google_bigquery_table.customers.table_id
   }
 
-  # Garantir que o arquivo existe antes de criar a função
-  depends_on = [data.google_storage_bucket_object.function_archive]
+  # Garantir que o bucket existe antes de criar a função
+  depends_on = [google_storage_bucket.function_bucket]
 }
 
 # ✅ Função - Get Customer
@@ -86,7 +79,7 @@ resource "google_cloudfunctions_function" "get_customer" {
     TABLE   = google_bigquery_table.customers.table_id
   }
 
-  depends_on = [data.google_storage_bucket_object.function_archive]
+  depends_on = [google_storage_bucket.function_bucket]
 }
 
 # ✅ Função - Update Customer
@@ -105,7 +98,7 @@ resource "google_cloudfunctions_function" "update_customer" {
     TABLE   = google_bigquery_table.customers.table_id
   }
 
-  depends_on = [data.google_storage_bucket_object.function_archive]
+  depends_on = [google_storage_bucket.function_bucket]
 }
 
 # ✅ Função - Delete Customer
@@ -124,5 +117,5 @@ resource "google_cloudfunctions_function" "delete_customer" {
     TABLE   = google_bigquery_table.customers.table_id
   }
 
-  depends_on = [data.google_storage_bucket_object.function_archive]
+  depends_on = [google_storage_bucket.function_bucket]
 }
