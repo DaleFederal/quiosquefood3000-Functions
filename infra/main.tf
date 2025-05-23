@@ -1,8 +1,24 @@
+terraform {
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = ">= 4.65.2"
+    }
+  }
+}
+
+provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+# ✅ Dataset BigQuery
 resource "google_bigquery_dataset" "dataset" {
   dataset_id = "QuiosqueFood"
   location   = "US"
 }
 
+# ✅ Tabela BigQuery
 resource "google_bigquery_table" "customers" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "customers"
@@ -15,30 +31,30 @@ resource "google_bigquery_table" "customers" {
   ])
 }
 
-resource "random_id" "bucket_suffix" {
-  byte_length = 4
-}
-
+# ✅ Bucket para armazenar o ZIP (você pode criar manualmente ou com Terraform)
 resource "google_storage_bucket" "function_bucket" {
-  name          = "function-bucket-${random_id.bucket_suffix.hex}"
-  location      = "US"
+  name          = var.bucket_name
+  location      = var.region
   force_destroy = true
 }
 
+# ✅ Objeto ZIP da função (upload via GitHub Actions)
 resource "google_storage_bucket_object" "function_archive" {
-  name   = "function-source.zip"
+  name   = var.zip_object
   bucket = google_storage_bucket.function_bucket.name
-  source = "function-source.zip"
+  source = var.zip_object
 }
 
+# ✅ Cloud Function: Create Customer
 resource "google_cloudfunctions_function" "create_customer" {
   name                  = "create-customer"
   runtime               = "nodejs20"
   available_memory_mb   = 256
-  source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
   trigger_http          = true
   entry_point           = "criarCustomer"
+
+  source_archive_bucket = google_storage_bucket.function_bucket.name
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
@@ -46,14 +62,16 @@ resource "google_cloudfunctions_function" "create_customer" {
   }
 }
 
+# ✅ Cloud Function: Get Customer
 resource "google_cloudfunctions_function" "get_customer" {
   name                  = "get-customer"
   runtime               = "nodejs20"
   available_memory_mb   = 256
-  source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
   trigger_http          = true
   entry_point           = "pesquisarCustomerPorCpf"
+
+  source_archive_bucket = google_storage_bucket.function_bucket.name
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
@@ -61,14 +79,16 @@ resource "google_cloudfunctions_function" "get_customer" {
   }
 }
 
+# ✅ Cloud Function: Update Customer
 resource "google_cloudfunctions_function" "update_customer" {
   name                  = "update-customer"
   runtime               = "nodejs20"
   available_memory_mb   = 256
-  source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
   trigger_http          = true
   entry_point           = "editarCustomerPorCpf"
+
+  source_archive_bucket = google_storage_bucket.function_bucket.name
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
@@ -76,14 +96,16 @@ resource "google_cloudfunctions_function" "update_customer" {
   }
 }
 
+# ✅ Cloud Function: Delete Customer
 resource "google_cloudfunctions_function" "delete_customer" {
   name                  = "delete-customer"
   runtime               = "nodejs20"
   available_memory_mb   = 256
-  source_archive_bucket = google_storage_bucket.function_bucket.name
-  source_archive_object = google_storage_bucket_object.function_archive.name
   trigger_http          = true
   entry_point           = "excluirCustomerPorCpf"
+
+  source_archive_bucket = google_storage_bucket.function_bucket.name
+  source_archive_object = google_storage_bucket_object.function_archive.name
 
   environment_variables = {
     DATASET = google_bigquery_dataset.dataset.dataset_id
