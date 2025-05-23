@@ -27,13 +27,17 @@ jobs:
         terraform_version: 1.6.6
 
     - name: Initialize Terraform
+      working-directory: QuiosqueFood3000-Functions/infra
       run: terraform -chdir=terraform init
 
     - name: Validate Terraform
+      working-directory: QuiosqueFood3000-Functions/infra
       run: terraform -chdir=terraform validate
 
     - name: Plan Terraform
+      working-directory: QuiosqueFood3000-Functions/infra
       run: terraform -chdir=terraform plan
 
     - name: Apply Terraform
+      working-directory: QuiosqueFood3000-Functions/infra
       run: terraform -chdir=terraform apply -auto-approve
