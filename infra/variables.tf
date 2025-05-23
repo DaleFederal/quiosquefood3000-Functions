@@ -4,18 +4,19 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = "Região para os recursos"
+  description = "Região dos recursos"
   type        = string
   default     = "us-central1"
 }
 
 variable "bucket_name" {
-  description = "Nome do bucket onde o ZIP da função será armazenado"
+  description = "Nome do bucket GCS fixo"
   type        = string
+  default     = "function-bucket-quiosquefood"
 }
 
 variable "zip_object" {
-  description = "Nome do arquivo ZIP dentro do bucket"
+  description = "Nome do arquivo ZIP no bucket"
   type        = string
   default     = "function-source.zip"
 }
