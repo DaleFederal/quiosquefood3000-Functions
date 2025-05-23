@@ -10,5 +10,5 @@ terraform {
 provider "google" {
   project     = "quiosquefood3000"
   region      = "us-central1"
-  credentials = file("C:/quiosquefood3000-Functions/QuiosqueFood3000-Functions/autenticacao.json")
+  credentials = file("./QuiosqueFood3000-Functions/autenticacao.json")
 }
