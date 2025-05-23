@@ -57,16 +57,17 @@ jobs:
       - name: Terraform Apply Infrastructure
         run: terraform -chdir=terraform apply -target=google_storage_bucket.function_bucket -auto-approve
 
-      # TERCEIRO: Agora fazer upload do ZIP para o bucket que já existe
+      # TERCEIRO: Upload do ZIP - CORRIGIDO
       - name: Upload ZIP to Google Cloud Storage
-        uses: google-github-actions/upload-cloud-storage@v1
-        with:
-          path: ${{ env.ZIP_NAME }}
-          destination: ${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
-          gzip: false
-          resumable: true
+        run: |
+          gsutil cp ${{ env.ZIP_NAME }} gs://${{ env.BUCKET_NAME }}/function-source.zip
 
-      # QUARTO: Aplicar o resto da infraestrutura
+      # QUARTO: Verificar se o arquivo foi enviado corretamente
+      - name: Verify ZIP upload
+        run: |
+          gsutil ls gs://${{ env.BUCKET_NAME }}/
+          
+      # QUINTO: Aplicar o resto da infraestrutura
       - name: Terraform Plan Complete
         run: terraform -chdir=terraform plan
 
