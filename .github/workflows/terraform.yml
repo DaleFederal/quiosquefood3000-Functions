@@ -63,7 +63,11 @@ jobs:
           terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer || true
           terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer || true
           terraform import google_bigquery_dataset.dataset ${{ env.DATASET_ID }} || true
-          terraform import google_bigquery_table.customers ${{ env.PROJECT_ID }}/${{ env.DATASET_ID }}.${{ env.TABLE_ID }}
+
+          # MOST EXPLICIT TABLE IMPORT
+          terraform import google_bigquery_table.customers projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}
+
+          # CRUCIAL: SHOW THE STATE
           terraform state list
 
       - name: Terraform Plan Infrastructure
@@ -76,7 +80,7 @@ jobs:
         uses: google-github-actions/upload-cloud-storage@v1
         with:
           path: ${{ env.ZIP_NAME }}
-          destination: ${{ env.BUCKET_NAME }}
+          destination: ${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
           gzip: false
           resumable: true
 
