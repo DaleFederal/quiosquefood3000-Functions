@@ -53,7 +53,19 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      # SEGUNDO: Criar apenas a infraestrutura básica (bucket)
+      # SEGUNDO: Importar recursos existentes automaticamente
+      - name: Import existing resources
+        run: |
+          cd terraform
+          # Importar bucket se existir
+          terraform import google_storage_bucket.function_bucket ${{ env.BUCKET_NAME }} || true
+          
+          # Importar funções se existirem
+          terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer || true
+          terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer || true
+          terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer || true
+          terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer || true
+
       - name: Terraform Plan Infrastructure
         run: terraform -chdir=terraform plan -target=google_storage_bucket.function_bucket
 
