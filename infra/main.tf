@@ -12,6 +12,15 @@ provider "google" {
   region  = var.region
 }
 
+# ✅ Bucket fixo para os arquivos ZIP das funções
+resource "google_storage_bucket" "function_bucket" {
+  name          = var.bucket_name
+  location      = var.region
+  force_destroy = true
+
+  uniform_bucket_level_access = true
+}
+
 # ✅ Dataset BigQuery
 resource "google_bigquery_dataset" "dataset" {
   dataset_id = "QuiosqueFood"
@@ -31,21 +40,14 @@ resource "google_bigquery_table" "customers" {
   ])
 }
 
-# ✅ Bucket para armazenar o ZIP (você pode criar manualmente ou com Terraform)
-resource "google_storage_bucket" "function_bucket" {
-  name          = var.bucket_name
-  location      = var.region
-  force_destroy = true
-}
-
-# ✅ Objeto ZIP da função (upload via GitHub Actions)
+# ✅ Arquivo ZIP da função (é gerado e enviado pelo GitHub Actions)
 resource "google_storage_bucket_object" "function_archive" {
   name   = var.zip_object
   bucket = google_storage_bucket.function_bucket.name
   source = var.zip_object
 }
 
-# ✅ Cloud Function: Create Customer
+# ✅ Função - Create Customer
 resource "google_cloudfunctions_function" "create_customer" {
   name                  = "create-customer"
   runtime               = "nodejs20"
@@ -62,7 +64,7 @@ resource "google_cloudfunctions_function" "create_customer" {
   }
 }
 
-# ✅ Cloud Function: Get Customer
+# ✅ Função - Get Customer
 resource "google_cloudfunctions_function" "get_customer" {
   name                  = "get-customer"
   runtime               = "nodejs20"
@@ -79,7 +81,7 @@ resource "google_cloudfunctions_function" "get_customer" {
   }
 }
 
-# ✅ Cloud Function: Update Customer
+# ✅ Função - Update Customer
 resource "google_cloudfunctions_function" "update_customer" {
   name                  = "update-customer"
   runtime               = "nodejs20"
@@ -96,7 +98,7 @@ resource "google_cloudfunctions_function" "update_customer" {
   }
 }
 
-# ✅ Cloud Function: Delete Customer
+# ✅ Função - Delete Customer
 resource "google_cloudfunctions_function" "delete_customer" {
   name                  = "delete-customer"
   runtime               = "nodejs20"
