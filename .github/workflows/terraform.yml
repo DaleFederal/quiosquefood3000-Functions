@@ -43,6 +43,9 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
@@ -59,8 +62,12 @@ jobs:
 
       # TERCEIRO: Upload do ZIP - CORRIGIDO
       - name: Upload ZIP to Google Cloud Storage
-        run: |
-          gsutil cp ${{ env.ZIP_NAME }} gs://${{ env.BUCKET_NAME }}/function-source.zip
+        uses: google-github-actions/upload-cloud-storage@v1
+        with:
+          path: ${{ env.ZIP_NAME }}
+          destination: ${{ env.BUCKET_NAME }}
+          gzip: false
+          resumable: true
 
       # QUARTO: Verificar se o arquivo foi enviado corretamente
       - name: Verify ZIP upload
