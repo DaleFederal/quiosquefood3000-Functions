@@ -17,7 +17,7 @@ jobs:
     env:
       ZIP_NAME: function-source.zip
       BUCKET_NAME: function-bucket-quiosquefood
-      PROJECT_ID: ${{ secrets.GCP_PROJECT }}
+      PROJECT_ID: ${{ secrets.GCP_PROJECT || 'quiosquefood3000' }}
 
     steps:
       - name: Checkout repository
@@ -43,20 +43,32 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      # PRIMEIRO: Inicializar o Terraform
+      - name: Terraform Init
+        run: terraform -chdir=terraform init
+
+      # SEGUNDO: Criar apenas a infraestrutura básica (bucket)
+      - name: Terraform Plan Infrastructure
+        run: terraform -chdir=terraform plan -target=google_storage_bucket.function_bucket
+
+      - name: Terraform Apply Infrastructure
+        run: terraform -chdir=terraform apply -target=google_storage_bucket.function_bucket -auto-approve
+
+      # TERCEIRO: Agora fazer upload do ZIP para o bucket que já existe
       - name: Upload ZIP to Google Cloud Storage
         uses: google-github-actions/upload-cloud-storage@v1
         with:
           path: ${{ env.ZIP_NAME }}
           destination: ${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
+          gzip: false
+          resumable: true
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
-
-      - name: Terraform Init
-        run: terraform -chdir=terraform init
-
-      - name: Terraform Plan
+      # QUARTO: Aplicar o resto da infraestrutura
+      - name: Terraform Plan Complete
         run: terraform -chdir=terraform plan
 
-      - name: Terraform Apply
+      - name: Terraform Apply Complete
         run: terraform -chdir=terraform apply -auto-approve
