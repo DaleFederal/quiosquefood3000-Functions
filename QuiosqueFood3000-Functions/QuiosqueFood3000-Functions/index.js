@@ -1,0 +1,5 @@
+exports.criarCustomer = require('./functions/criarCustomers')
+exports.customerPubSubMessenger = require('./functions/customerPubSubMessenger')
+exports.pesquisarCustomerPorCpf = require('./functions/pesquisarCustomerPorCpf')
+exports.editarCustomerPorCpf = require('./functions/editarCustomerPorCpf')
+exports.excluirCustomerPorCpf = require('./functions/excluirCustomerPorCpf')
