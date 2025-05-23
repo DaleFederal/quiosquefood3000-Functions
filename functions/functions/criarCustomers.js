@@ -26,7 +26,7 @@ module.exports = async function criarCustomer(req, res) {
     return res.status(409).send('CPF já cadastrado.');
   }
 
-  const resultado = await pubsub({ nome, email, cpf }, 'customers');
+  const resultado = await pubsub({ nome, email, cpf }, 'customer');
   console.log({ nome, email, cpf });
 
   res.status(201).send(resultado);
