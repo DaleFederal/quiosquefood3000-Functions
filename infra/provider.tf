@@ -10,5 +10,4 @@ terraform {
 provider "google" {
   project     = "quiosquefood3000"
   region      = "us-central1"
-  credentials = file("./autenticacao.json")
 }
