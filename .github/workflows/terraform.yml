@@ -1,21 +1,22 @@
-name: Build and Upload Function Zip
+name: Package and Deploy Functions
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'functions/**'
-      - '.github/workflows/package-functions.yml'
   workflow_dispatch:
 
 jobs:
-  build-zip:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
 
     env:
       ZIP_NAME: function-source.zip
-      BUCKET_NAME: function-bucket-${{ secrets.BUCKET_SUFFIX }}
+      BUCKET_NAME: function-bucket-quiosquefood
       PROJECT_ID: ${{ secrets.GCP_PROJECT }}
 
     steps:
@@ -30,9 +31,9 @@ jobs:
       - name: Install dependencies
         run: |
           cd functions
-          npm ci || true  # Ignora se não houver node_modules global
+          npm ci || true
 
-      - name: Create ZIP
+      - name: Create ZIP package
         run: |
           cd functions
           zip -r ../${{ env.ZIP_NAME }} .
@@ -42,11 +43,20 @@ jobs:
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-      - name: Upload ZIP to GCS
+      - name: Upload ZIP to Google Cloud Storage
         uses: google-github-actions/upload-cloud-storage@v1
         with:
           path: ${{ env.ZIP_NAME }}
           destination: gs://${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}
 
-      - name: Output result
-        run: echo "Zip uploaded to gs://${{ env.BUCKET_NAME }}/${{ env.ZIP_NAME }}"
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        run: terraform -chdir=terraform init
+
+      - name: Terraform Plan
+        run: terraform -chdir=terraform plan
+
+      - name: Terraform Apply
+        run: terraform -chdir=terraform apply -auto-approve
