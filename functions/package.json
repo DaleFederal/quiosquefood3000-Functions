@@ -14,9 +14,12 @@
   },
   "dependencies": {
     "@google-cloud/bigquery": "^4.7.0",
+    "@google-cloud/functions": "^4.0.1",
+    "@google-cloud/functions-framework": "^4.0.0",
     "@google-cloud/pubsub": "^1.7.1",
     "basic-auth": "^2.0.1",
     "export": "^0.1.337",
+    "firebase-admin": "^13.4.0",
     "koa": "^2.11.0",
     "koa-bodyparser": "^4.3.0",
     "pubsub": "^3.2.1"
