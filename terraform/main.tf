@@ -29,6 +29,8 @@ resource "google_bigquery_table" "customers" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "customers"
 
+  deletion_protection = false
+
   schema = jsonencode([
     { name = "id", type = "STRING", mode = "REQUIRED" },
     { name = "name", type = "STRING", mode = "REQUIRED" },
