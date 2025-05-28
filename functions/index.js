@@ -1,11 +1,11 @@
 const admin = require('firebase-admin');
 admin.initializeApp();
 
-const criarCustomers = require('./criarCustomers');
-const editarCustomerPorCpf = require('./editarCustomerPorCpf');
-const excluirCustomerPorCpf = require('./excluirCustomerPorCpf');
-const pesquisarCustomerPorCpf = require('./pesquisarCustomerPorCpf');
-const customerPubSubMessenger = require('./customerPubSubMessenger');
+const criarCustomers = require('./functions/criarCustomers');
+const editarCustomerPorCpf = require('./functions/editarCustomerPorCpf');
+const excluirCustomerPorCpf = require('./functions/excluirCustomerPorCpf');
+const pesquisarCustomerPorCpf = require('./functions/pesquisarCustomerPorCpf');
+const customerPubSubMessenger = require('./functions/customerPubSubMessenger');
 
 async function autenticar(req, res) {
   const authHeader = req.headers.authorization;
