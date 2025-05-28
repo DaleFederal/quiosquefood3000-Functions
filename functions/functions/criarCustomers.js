@@ -16,9 +16,9 @@ async function cpfExiste(cpf) {
 }
 
 module.exports = async function criarCustomer(req, res) {
-  const { nome, email, cpf } = req.body;
+  const { name, email, cpf } = req.body;
 
-  if (!nome) return res.status(400).send('O campo nome não foi informado.');
+  if (!name) return res.status(400).send('O campo nome não foi informado.');
   if (!email) return res.status(400).send('O campo email não foi informado.');
   if (!cpf) return res.status(400).send('O campo cpf não foi informado.');  
 
@@ -27,8 +27,8 @@ module.exports = async function criarCustomer(req, res) {
   }
 
   try {
-    const resultado = await pubsub({ nome, email, cpf }, 'customer');
-    console.log('Mensagem enviada para PubSub:', { nome, email, cpf });
+    const resultado = await pubsub({ name, email, cpf }, 'customer');
+    console.log('Mensagem enviada para PubSub:', { name, email, cpf });
     console.log('ID da mensagem:', resultado);
     
     res.status(201).send({ 
