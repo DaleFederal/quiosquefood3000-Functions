@@ -3,7 +3,7 @@ const bigquery = new BigQuery();
 
 module.exports = async function pesquisarPorCpf(cpf) {
   const query = `
-    SELECT id, nome, email, cpf
+    SELECT id, name, email, cpf
     FROM \`quiosquefood3000.QuiosqueFood.customers\`
     WHERE cpf = @cpf
   `;
