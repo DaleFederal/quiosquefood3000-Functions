@@ -1,12 +1,11 @@
-const functions = require('@google-cloud/functions-framework');
 const admin = require('firebase-admin');
-
 admin.initializeApp();
 
 const criarCustomers = require('./criarCustomers');
 const editarCustomerPorCpf = require('./editarCustomerPorCpf');
 const excluirCustomerPorCpf = require('./excluirCustomerPorCpf');
 const pesquisarCustomerPorCpf = require('./pesquisarCustomerPorCpf');
+const customerPubSubMessenger = require('./customerPubSubMessenger');
 
 async function autenticar(req, res) {
   const authHeader = req.headers.authorization;
@@ -29,22 +28,15 @@ async function autenticar(req, res) {
   }
 }
 
-functions.http('criarCustomer', async (req, res) => {
-  await autenticar(req, res);
-  await criarCustomers(req, res);
-});
+function proteger(fn) {
+  return async (req, res) => {
+    await autenticar(req, res);
+    return fn(req, res);
+  };
+}
 
-functions.http('editarCustomerPorCpf', async (req, res) => {
-  await autenticar(req, res);
-  await editarCustomerPorCpf(req, res);
-});
-
-functions.http('excluirCustomerPorCpf', async (req, res) => {
-  await autenticar(req, res);
-  await excluirCustomerPorCpf(req, res);
-});
-
-functions.http('pesquisarCustomerPorCpf', async (req, res) => {
-  await autenticar(req, res);
-  await pesquisarCustomerPorCpf(req, res);
-});
+module.exports.criarCustomer = proteger(criarCustomers);
+module.exports.editarCustomerPorCpf = proteger(editarCustomerPorCpf);
+module.exports.excluirCustomerPorCpf = proteger(excluirCustomerPorCpf);
+module.exports.pesquisarCustomerPorCpf = proteger(pesquisarCustomerPorCpf);
+module.exports.customerPubSubMessenger = customerPubSubMessenger;
