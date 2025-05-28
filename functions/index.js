@@ -1,11 +1,12 @@
-const { OAuth2Client } = require('google-auth-library');
-const client = new OAuth2Client();
+const functions = require('@google-cloud/functions-framework');
+const admin = require('firebase-admin');
 
-const criarCustomerFn = require('./functions/criarCustomers');
-const customerPubSubMessengerFn = require('./functions/customerPubSubMessenger');
-const pesquisarCustomerPorCpfFn = require('./functions/pesquisarCustomerPorCpf');
-const editarCustomerPorCpfFn = require('./functions/editarCustomerPorCpf');
-const excluirCustomerPorCpfFn = require('./functions/excluirCustomerPorCpf');
+admin.initializeApp();
+
+const criarCustomers = require('./criarCustomers');
+const editarCustomerPorCpf = require('./editarCustomerPorCpf');
+const excluirCustomerPorCpf = require('./excluirCustomerPorCpf');
+const pesquisarCustomerPorCpf = require('./pesquisarCustomerPorCpf');
 
 async function autenticar(req, res) {
   const authHeader = req.headers.authorization;
@@ -18,13 +19,9 @@ async function autenticar(req, res) {
   const idToken = authHeader.split(' ')[1];
 
   try {
-    const ticket = await client.verifyIdToken({
-      idToken,
-      audience: process.env.PROJECT_ID,
-    });
-
-    const payload = ticket.getPayload();
-    return payload;
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    console.log('Usuário autenticado:', decodedToken);
+    return decodedToken;
   } catch (error) {
     console.error('Erro na autenticação:', error);
     res.status(403).send({ error: 'Token inválido.' });
@@ -32,15 +29,22 @@ async function autenticar(req, res) {
   }
 }
 
-function proteger(fn) {
-  return async (req, res) => {
-    await autenticar(req, res);
-    return fn(req, res);
-  };
-}
+functions.http('criarCustomer', async (req, res) => {
+  await autenticar(req, res);
+  await criarCustomers(req, res);
+});
 
-exports.criarCustomer = proteger(criarCustomerFn);
-exports.pesquisarCustomerPorCpf = proteger(pesquisarCustomerPorCpfFn);
-exports.editarCustomerPorCpf = proteger(editarCustomerPorCpfFn);
-exports.excluirCustomerPorCpf = proteger(excluirCustomerPorCpfFn);
-exports.customerPubSubMessenger = customerPubSubMessengerFn;
+functions.http('editarCustomerPorCpf', async (req, res) => {
+  await autenticar(req, res);
+  await editarCustomerPorCpf(req, res);
+});
+
+functions.http('excluirCustomerPorCpf', async (req, res) => {
+  await autenticar(req, res);
+  await excluirCustomerPorCpf(req, res);
+});
+
+functions.http('pesquisarCustomerPorCpf', async (req, res) => {
+  await autenticar(req, res);
+  await pesquisarCustomerPorCpf(req, res);
+});
