@@ -146,3 +146,12 @@ resource "google_cloudfunctions_function" "customer_pubsub_messenger" {
 
   depends_on = [google_storage_bucket.function_bucket]
 }
+
+resource "google_cloudfunctions_function_iam_member" "invoker_authenticated" {
+  project        = google_cloudfunctions_function.create_customer.project
+  region         = google_cloudfunctions_function.create_customer.region
+  cloud_function = google_cloudfunctions_function.create_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "allAuthenticatedUsers"
+}
