@@ -1,140 +1,133 @@
-openapi: 3.0.0
+swagger: '2.0'
 info:
   title: Customer API
   version: 1.0.0
+host: us-central1-quiosquefood3000.cloudfunctions.net
+schemes:
+  - https
+securityDefinitions:
+  firebase:
+    type: oauth2
+    authorizationUrl: ""
+    flow: implicit
+    x-google-issuer: https://securetoken.google.com/quiosquefood3000
+    x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
+    x-google-audiences: quiosquefood3000
+
 paths:
   /create-customer:
     post:
       operationId: create-customer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                email:
-                  type: string
-                cpf:
-                  type: string
-              required:
-                - name
-                - email
-                - cpf
-      responses:
-        '200':
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
-          description: Unauthorized
-        '500':
-          description: Internal Server Error
       security:
         - firebase: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required:
+              - name
+              - email
+              - cpf
+            properties:
+              name:
+                type: string
+              email:
+                type: string
+              cpf:
+                type: string
+      responses:
+        200:
+          description: Success
+        401:
+          description: Unauthorized
+        500:
+          description: Internal Server Error
       x-google-backend:
         address: https://us-central1-quiosquefood3000.cloudfunctions.net/create-customer
 
   /update-customer:
     put:
       operationId: update-customer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name:
-                  type: string
-                email:
-                  type: string
-                cpf:
-                  type: string
-              required:
-                - cpf
-      responses:
-        '200':
-          description: Success
-        '401':
-          description: Unauthorized
-        '404':
-          description: Customer not found
-        '500':
-          description: Internal Server Error
       security:
         - firebase: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required:
+              - cpf
+            properties:
+              name:
+                type: string
+              email:
+                type: string
+              cpf:
+                type: string
+      responses:
+        200:
+          description: Success
+        401:
+          description: Unauthorized
+        404:
+          description: Customer not found
+        500:
+          description: Internal Server Error
       x-google-backend:
         address: https://us-central1-quiosquefood3000.cloudfunctions.net/update-customer
 
   /delete-customer:
     delete:
       operationId: delete-customer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                cpf:
-                  type: string
-              required:
-                - cpf
-      responses:
-        '200':
-          description: Success
-        '401':
-          description: Unauthorized
-        '404':
-          description: Customer not found
-        '500':
-          description: Internal Server Error
       security:
         - firebase: []
+      parameters:
+        - in: body
+          name: body
+          required: true
+          schema:
+            type: object
+            required:
+              - cpf
+            properties:
+              cpf:
+                type: string
+      responses:
+        200:
+          description: Success
+        401:
+          description: Unauthorized
+        404:
+          description: Customer not found
+        500:
+          description: Internal Server Error
       x-google-backend:
         address: https://us-central1-quiosquefood3000.cloudfunctions.net/delete-customer
 
   /pesquisar-customer:
     get:
       operationId: pesquisar-customer
+      security:
+        - firebase: []
       parameters:
         - name: cpf
           in: query
           required: true
-          schema:
-            type: string
+          type: string
       responses:
-        '200':
+        200:
           description: Success
-          content:
-            application/json:
-              schema:
-                type: object
-        '401':
+        401:
           description: Unauthorized
-        '404':
+        404:
           description: Customer not found
-        '500':
+        500:
           description: Internal Server Error
-      security:
-        - firebase: []
       x-google-backend:
         address: https://us-central1-quiosquefood3000.cloudfunctions.net/pesquisar-customer
-
-components:
-  securitySchemes:
-    firebase:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      x-google-issuer: https://securetoken.google.com/quiosquefood3000
-      x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
-      x-google-audiences: quiosquefood3000
 
 security:
   - firebase: []
