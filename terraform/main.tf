@@ -180,7 +180,7 @@ resource "google_api_gateway_api_config" "customer_api_config" {
   openapi_documents {
     document {
       path     = "openapi.yaml"
-      contents = file("openapi.yaml")
+      contents = base64encode(file("openapi.yaml"))
     }
   }
 
@@ -232,9 +232,4 @@ resource "google_cloudfunctions_function_iam_member" "delete_customer_invoker" {
 
   role   = "roles/cloudfunctions.invoker"
   member = "serviceAccount:${google_service_account.api_gateway_sa.email}"
-}
-
-# Output da URL do Gateway
-output "gateway_url" {
-  value = google_api_gateway_gateway.customer_gateway.default_hostname
 }
