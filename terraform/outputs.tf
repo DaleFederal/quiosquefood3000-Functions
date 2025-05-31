@@ -1,13 +1,9 @@
-output "gateway_url" {
-  value = "https://${google_api_gateway_gateway.customer_gateway.default_hostname}"
-}
-
 output "create_customer_url" {
   value = google_cloudfunctions_function.create_customer.https_trigger_url
 }
 
-output "pesquisar_customer_url" {
-  value = google_cloudfunctions_function.pesquisar_customer.https_trigger_url
+output "get_customer_url" {
+  value = google_cloudfunctions_function.get_customer.https_trigger_url
 }
 
 output "update_customer_url" {
