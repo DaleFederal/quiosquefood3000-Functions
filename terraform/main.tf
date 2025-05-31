@@ -74,7 +74,7 @@ resource "google_cloudfunctions_function" "get_customer" {
   runtime               = "nodejs20"
   available_memory_mb   = 256
   trigger_http          = true
-  entry_point           = "pesquisarCustomerPorCpf"
+  entry_point           = "get-customer"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
   source_archive_object = google_storage_bucket_object.function_archive.name
@@ -157,3 +157,25 @@ resource "google_cloudfunctions_function_iam_member" "invoker_authenticated" {
   role   = "roles/cloudfunctions.invoker"
   member = "allAuthenticatedUsers"
 }
+
+resource "google_api_gateway_api" "customer_api" {
+  api_id = "customer-api"
+}
+
+resource "google_api_gateway_api_config" "customer_api_config" {
+  api      = google_api_gateway_api.customer_api.id
+  config_id = "v1"
+  openapi_documents {
+    document {
+      path     = "openapi.yaml"
+      contents = file("openapi.yaml")
+    }
+  }
+}
+
+resource "google_api_gateway_gateway" "customer_gateway" {
+  name     = "customer-gateway"
+  api      = google_api_gateway_api.customer_api.id
+  api_config = google_api_gateway_api_config.customer_api_config.id
+  location = var.region
+  }
