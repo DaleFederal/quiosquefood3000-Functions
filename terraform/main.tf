@@ -2,21 +2,12 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.66.0"
-    }
-    google-beta = {
-      source  = "hashicorp/google-beta"
-      version = ">= 4.66.0"
+      version = ">= 4.65.2"
     }
   }
 }
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-
-provider "google-beta" {
   project = var.project_id
   region  = var.region
 }
@@ -38,8 +29,6 @@ resource "google_bigquery_table" "customers" {
   dataset_id = google_bigquery_dataset.dataset.dataset_id
   table_id   = "customers"
 
-  deletion_protection = false
-
   schema = jsonencode([
     { name = "id", type = "STRING", mode = "REQUIRED" },
     { name = "name", type = "STRING", mode = "REQUIRED" },
@@ -59,7 +48,6 @@ resource "google_storage_bucket_object" "function_archive" {
   source = "../${var.zip_object}"
 }
 
-# Cloud Functions
 resource "google_cloudfunctions_function" "create_customer" {
   name                  = "create-customer"
   runtime               = "nodejs20"
@@ -79,8 +67,8 @@ resource "google_cloudfunctions_function" "create_customer" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-resource "google_cloudfunctions_function" "pesquisar_customer" {
-  name                  = "pesquisar-customer"
+resource "google_cloudfunctions_function" "get_customer" {
+  name                  = "get-customer"
   runtime               = "nodejs20"
   available_memory_mb   = 256
   trigger_http          = true
@@ -159,70 +147,11 @@ resource "google_cloudfunctions_function" "customer_pubsub_messenger" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-# API Gateway
-resource "google_api_gateway_api" "customer_api" {
-  provider = google-beta
-  api_id   = "customer-api"
-}
-
-resource "google_api_gateway_api_config" "customer_api_config" {
-  provider      = google-beta
-  api           = google_api_gateway_api.customer_api.api_id
-  api_config_id = "v1"
-
-  openapi_documents {
-    document {
-      path     = "openapi.yaml"
-      contents = base64encode(file("openapi.yaml"))
-    }
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-resource "google_api_gateway_gateway" "customer_gateway" {
-  provider = google-beta
-  
-  gateway_id = "customer-gateway"
-  api_config = google_api_gateway_api_config.customer_api_config.id
-  region     = "us-central1"
-}
-
-# IAM para permitir invocação das Cloud Functions (mais simples)
-resource "google_cloudfunctions_function_iam_member" "create_customer_invoker" {
-  project        = var.project_id
-  region         = var.region
+resource "google_cloudfunctions_function_iam_member" "invoker_authenticated" {
+  project        = google_cloudfunctions_function.create_customer.project
+  region         = google_cloudfunctions_function.create_customer.region
   cloud_function = google_cloudfunctions_function.create_customer.name
 
   role   = "roles/cloudfunctions.invoker"
-  member = "allUsers"
-}
-
-resource "google_cloudfunctions_function_iam_member" "pesquisar_customer_invoker" {
-  project        = var.project_id
-  region         = var.region
-  cloud_function = google_cloudfunctions_function.pesquisar_customer.name
-
-  role   = "roles/cloudfunctions.invoker"
-  member = "allUsers"
-}
-
-resource "google_cloudfunctions_function_iam_member" "update_customer_invoker" {
-  project        = var.project_id
-  region         = var.region
-  cloud_function = google_cloudfunctions_function.update_customer.name
-
-  role   = "roles/cloudfunctions.invoker"
-  member = "allUsers"
-}
-
-resource "google_cloudfunctions_function_iam_member" "delete_customer_invoker" {
-  project        = var.project_id
-  region         = var.region
-  cloud_function = google_cloudfunctions_function.delete_customer.name
-
-  role   = "roles/cloudfunctions.invoker"
-  member = "allUsers"
+  member = "allAuthenticatedUsers"
 }
