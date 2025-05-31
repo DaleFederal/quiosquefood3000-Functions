@@ -2,31 +2,47 @@ const { BigQuery } = require('@google-cloud/bigquery');
 const instancia = new BigQuery();
 
 module.exports = async function inserirCustomer({ name, email, cpf }) {
-  const consultaIdQuery = `
-    SELECT IFNULL(MAX(id), 0) as maxId
-    FROM \`quiosquefood3000.QuiosqueFood.customers\`
-  `;
+  try {    
+    const insertQuery = `
+      INSERT INTO \`quiosquefood3000.QuiosqueFood.customers\` (id, name, email, cpf)
+      SELECT 
+        IFNULL(MAX(id), 0) + 1 as novo_id,
+        @name as name,
+        @email as email,
+        @cpf as cpf
+      FROM \`quiosquefood3000.QuiosqueFood.customers\`
+    `;
 
-  const [job] = await instancia.createQueryJob({ query: consultaIdQuery });
-  const [rows] = await job.getQueryResults();
-  const maxId = rows[0]?.maxId || 0;
-  const novoId = maxId + 1;
+    const options = {
+      query: insertQuery,
+      params: { name, email, cpf },
+    };
 
-  const insertQuery = `
-    INSERT INTO \`quiosquefood3000.QuiosqueFood.customers\` (id, name, email, cpf)
-    VALUES (@id, @name, @email, @cpf)
-  `;
+    const [rows] = await instancia.query(options);
+    console.log('Resultado da inserção:', rows);
+    
+    const buscarIdQuery = `
+      SELECT id FROM \`quiosquefood3000.QuiosqueFood.customers\`
+      WHERE email = @email
+      ORDER BY id DESC
+      LIMIT 1
+    `;
 
-  const options = {
-    query: insertQuery,
-    params: { id: novoId, name, email, cpf },
-  };
+    const [idRows] = await instancia.query({
+      query: buscarIdQuery,
+      params: { email }
+    });
 
-  const [insertJob] = await instancia.createQueryJob(options);
-  await insertJob.getQueryResults();
+    const novoId = idRows[0]?.id;
 
-  return {
-    id: novoId,
-    message: 'Customer inserido com sucesso.',
-  };
+    return {
+      id: novoId,
+      message: 'Customer inserido com sucesso.',
+      insertResult: rows
+    };
+
+  } catch (error) {
+    console.error('Erro ao inserir customer:', error);
+    throw new Error(`Falha ao inserir customer: ${error.message}`);
+  }
 };
