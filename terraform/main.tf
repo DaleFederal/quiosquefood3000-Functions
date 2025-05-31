@@ -2,12 +2,21 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = ">= 4.65.2"
+      version = ">= 4.66.0"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = ">= 4.66.0"
     }
   }
 }
 
 provider "google" {
+  project = var.project_id
+  region  = var.region
+}
+
+provider "google-beta" {
   project = var.project_id
   region  = var.region
 }
@@ -50,6 +59,7 @@ resource "google_storage_bucket_object" "function_archive" {
   source = "../${var.zip_object}"
 }
 
+# Cloud Functions
 resource "google_cloudfunctions_function" "create_customer" {
   name                  = "create-customer"
   runtime               = "nodejs20"
@@ -69,12 +79,12 @@ resource "google_cloudfunctions_function" "create_customer" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-resource "google_cloudfunctions_function" "get_customer" {
-  name                  = "get-customer"
+resource "google_cloudfunctions_function" "pesquisar_customer" {
+  name                  = "pesquisar-customer"
   runtime               = "nodejs20"
   available_memory_mb   = 256
   trigger_http          = true
-  entry_point           = "get-customer"
+  entry_point           = "pesquisarCustomerPorCpf"
 
   source_archive_bucket = google_storage_bucket.function_bucket.name
   source_archive_object = google_storage_bucket_object.function_archive.name
@@ -149,33 +159,82 @@ resource "google_cloudfunctions_function" "customer_pubsub_messenger" {
   depends_on = [google_storage_bucket.function_bucket]
 }
 
-resource "google_cloudfunctions_function_iam_member" "invoker_authenticated" {
-  project        = google_cloudfunctions_function.create_customer.project
-  region         = google_cloudfunctions_function.create_customer.region
-  cloud_function = google_cloudfunctions_function.create_customer.name
-
-  role   = "roles/cloudfunctions.invoker"
-  member = "allAuthenticatedUsers"
+# Service Account para o API Gateway
+resource "google_service_account" "api_gateway_sa" {
+  account_id   = "api-gateway-sa"
+  display_name = "API Gateway Service Account"
+  description  = "Service Account para o API Gateway invocar Cloud Functions"
 }
 
+# API Gateway
 resource "google_api_gateway_api" "customer_api" {
-  api_id = "customer-api"
+  provider = google-beta
+  api_id   = "customer-api"
 }
 
 resource "google_api_gateway_api_config" "customer_api_config" {
-  api      = google_api_gateway_api.customer_api.id
-  config_id = "v1"
+  provider      = google-beta
+  api           = google_api_gateway_api.customer_api.api_id
+  api_config_id = "v1"
+
   openapi_documents {
     document {
       path     = "openapi.yaml"
       contents = file("openapi.yaml")
     }
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "google_api_gateway_gateway" "customer_gateway" {
-  name     = "customer-gateway"
-  api      = google_api_gateway_api.customer_api.id
+  provider = google-beta
+  
+  gateway_id = "customer-gateway"
   api_config = google_api_gateway_api_config.customer_api_config.id
-  location = var.region
-  }
+  region     = "us-central1"
+}
+
+# IAM para API Gateway acessar as Cloud Functions
+resource "google_cloudfunctions_function_iam_member" "create_customer_invoker" {
+  project        = google_cloudfunctions_function.create_customer.project
+  region         = google_cloudfunctions_function.create_customer.region
+  cloud_function = google_cloudfunctions_function.create_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_service_account.api_gateway_sa.email}"
+}
+
+resource "google_cloudfunctions_function_iam_member" "pesquisar_customer_invoker" {
+  project        = google_cloudfunctions_function.pesquisar_customer.project
+  region         = google_cloudfunctions_function.pesquisar_customer.region
+  cloud_function = google_cloudfunctions_function.pesquisar_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_service_account.api_gateway_sa.email}"
+}
+
+resource "google_cloudfunctions_function_iam_member" "update_customer_invoker" {
+  project        = google_cloudfunctions_function.update_customer.project
+  region         = google_cloudfunctions_function.update_customer.region
+  cloud_function = google_cloudfunctions_function.update_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_service_account.api_gateway_sa.email}"
+}
+
+resource "google_cloudfunctions_function_iam_member" "delete_customer_invoker" {
+  project        = google_cloudfunctions_function.delete_customer.project
+  region         = google_cloudfunctions_function.delete_customer.region
+  cloud_function = google_cloudfunctions_function.delete_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_service_account.api_gateway_sa.email}"
+}
+
+# Output da URL do Gateway
+output "gateway_url" {
+  value = google_api_gateway_gateway.customer_gateway.default_hostname
+}

@@ -6,30 +6,102 @@ paths:
   /create-customer:
     post:
       operationId: create-customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                cpf:
+                  type: string
+              required:
+                - name
+                - email
+                - cpf
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '500':
+          description: Internal Server Error
+      security:
+        - firebase: []
       x-google-backend:
         address: https://us-central1-quiosquefood3000.cloudfunctions.net/create-customer
+
   /update-customer:
     put:
       operationId: update-customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                cpf:
+                  type: string
+              required:
+                - cpf
       responses:
         '200':
           description: Success
+        '401':
+          description: Unauthorized
+        '404':
+          description: Customer not found
+        '500':
+          description: Internal Server Error
+      security:
+        - firebase: []
       x-google-backend:
         address: https://us-central1-quiosquefood3000.cloudfunctions.net/update-customer
+
   /delete-customer:
     delete:
       operationId: delete-customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                cpf:
+                  type: string
+              required:
+                - cpf
       responses:
         '200':
           description: Success
+        '401':
+          description: Unauthorized
+        '404':
+          description: Customer not found
+        '500':
+          description: Internal Server Error
+      security:
+        - firebase: []
       x-google-backend:
         address: https://us-central1-quiosquefood3000.cloudfunctions.net/delete-customer
-  /pesquisarCustomerPorCpf:
+
+  /pesquisar-customer:
     get:
-      operationId: pesquisarCustomerPorCpf
+      operationId: pesquisar-customer
       parameters:
         - name: cpf
           in: query
@@ -39,8 +111,20 @@ paths:
       responses:
         '200':
           description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          description: Unauthorized
+        '404':
+          description: Customer not found
+        '500':
+          description: Internal Server Error
+      security:
+        - firebase: []
       x-google-backend:
-        address: https://us-central1-quiosquefood3000.cloudfunctions.net/pesquisarCustomerPorCpf
+        address: https://us-central1-quiosquefood3000.cloudfunctions.net/pesquisar-customer
 
 components:
   securitySchemes:
@@ -51,5 +135,6 @@ components:
       x-google-issuer: https://securetoken.google.com/quiosquefood3000
       x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
       x-google-audiences: quiosquefood3000
+
 security:
   - firebase: []
