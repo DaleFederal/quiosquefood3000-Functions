@@ -30,7 +30,7 @@ resource "google_bigquery_table" "customers" {
   table_id   = "customers"
 
   schema = jsonencode([
-    { name = "id", type = "STRING", mode = "REQUIRED" },
+    { name = "id", type = "INT64", mode = "REQUIRED" },
     { name = "name", type = "STRING", mode = "REQUIRED" },
     { name = "email", type = "STRING", mode = "REQUIRED" },
     { name = "cpf", type = "STRING", mode = "REQUIRED" }
