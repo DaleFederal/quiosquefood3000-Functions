@@ -2,11 +2,12 @@ const { BigQuery } = require('@google-cloud/bigquery');
 const instancia = new BigQuery();
 
 module.exports = async function inserirCustomer({ name, email, cpf }) {
-  try {    
+  try {
+    // Usar uma query única para gerar ID incremental e inserir atomicamente
     const insertQuery = `
       INSERT INTO \`quiosquefood3000.QuiosqueFood.customers\` (id, name, email, cpf)
       SELECT 
-        IFNULL(MAX(id), 0) + 1 as novo_id,
+        COALESCE(MAX(id), 0) + 1 as novo_id,
         @name as name,
         @email as email,
         @cpf as cpf
@@ -19,26 +20,27 @@ module.exports = async function inserirCustomer({ name, email, cpf }) {
     };
 
     const [rows] = await instancia.query(options);
-    console.log('Resultado da inserção:', rows);
-    
-    const buscarIdQuery = `
+    console.log('Inserção executada:', rows);
+
+    // Buscar o ID que foi gerado para retornar
+    const getIdQuery = `
       SELECT id FROM \`quiosquefood3000.QuiosqueFood.customers\`
-      WHERE email = @email
+      WHERE cpf = @cpf
       ORDER BY id DESC
       LIMIT 1
     `;
 
     const [idRows] = await instancia.query({
-      query: buscarIdQuery,
-      params: { email }
+      query: getIdQuery,
+      params: { cpf }
     });
 
-    const novoId = idRows[0]?.id;
+    const novoId = parseInt(idRows[0]?.id);
+    console.log('ID gerado:', novoId);
 
     return {
       id: novoId,
-      message: 'Customer inserido com sucesso.',
-      insertResult: rows
+      message: 'Customer inserido com sucesso.'
     };
 
   } catch (error) {
