@@ -1,0 +1,55 @@
+openapi: 3.0.0
+info:
+  title: Customer API
+  version: 1.0.0
+paths:
+  /create-customer:
+    post:
+      operationId: create-customer
+      responses:
+        '200':
+          description: Success
+      x-google-backend:
+        address: https://us-central1-quiosquefood3000.cloudfunctions.net/create-customer
+  /update-customer:
+    put:
+      operationId: update-customer
+      responses:
+        '200':
+          description: Success
+      x-google-backend:
+        address: https://us-central1-quiosquefood3000.cloudfunctions.net/update-customer
+  /delete-customer:
+    delete:
+      operationId: delete-customer
+      responses:
+        '200':
+          description: Success
+      x-google-backend:
+        address: https://us-central1-quiosquefood3000.cloudfunctions.net/delete-customer
+  /pesquisarCustomerPorCpf:
+    get:
+      operationId: pesquisarCustomerPorCpf
+      parameters:
+        - name: cpf
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+      x-google-backend:
+        address: https://us-central1-quiosquefood3000.cloudfunctions.net/pesquisarCustomerPorCpf
+
+components:
+  securitySchemes:
+    firebase:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      x-google-issuer: https://securetoken.google.com/quiosquefood3000
+      x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
+      x-google-audiences: quiosquefood3000
+security:
+  - firebase: []
