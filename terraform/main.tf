@@ -178,31 +178,41 @@ resource "google_api_gateway_api_config" "api_config" {
   }
 }
 
+# Adicione no início do arquivo
+provider "google-beta" {
+  project = var.project_id
+  region  = var.region
+}
+
+# 1. Crie a Service Account para o Gateway
+resource "google_service_account" "gateway_invoker" {
+  account_id   = "gateway-invoker"
+  display_name = "API Gateway Cloud Functions Invoker"
+}
+
+# 2. Configure o Gateway normalmente (sem service_account)
 resource "google_api_gateway_gateway" "gateway" {
   provider   = google-beta
   api_config = google_api_gateway_api_config.api_config.id
   gateway_id = "customers-gateway"
   region     = var.region
-
   depends_on = [google_api_gateway_api_config.api_config]
 }
 
-resource "time_sleep" "wait_for_service_account" {
-  depends_on = [google_api_gateway_gateway.gateway]
-  
-  create_duration = "2m"
+# 3. Atribua permissões usando a SA criada manualmente
+resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
+  project        = var.project_id
+  region         = var.region
+  cloud_function = google_cloudfunctions_function.create_customer.name
+  role           = "roles/cloudfunctions.invoker"
+  member         = "serviceAccount:${google_service_account.gateway_invoker.email}"
 }
 
-resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
-  project        = google_cloudfunctions_function.create_customer.project
-  region         = google_cloudfunctions_function.create_customer.region
-  cloud_function = google_cloudfunctions_function.create_customer.name
-
-  role   = "roles/cloudfunctions.invoker"
-  member = "serviceAccount:${replace(google_api_gateway_gateway.gateway.default_hostname, ".", "-")}.uc.gateway.dev@${var.project_id}.iam.gserviceaccount.com"
-
-  depends_on = [
-    time_sleep.wait_for_service_account,
-    google_cloudfunctions_function.create_customer
-  ]
+# 4. Repita para outras funções
+resource "google_cloudfunctions_function_iam_member" "gateway_invoker_get" {
+  project        = var.project_id
+  region         = var.region
+  cloud_function = google_cloudfunctions_function.get_customer.name
+  role           = "roles/cloudfunctions.invoker"
+  member         = "serviceAccount:${google_service_account.gateway_invoker.email}"
 }
