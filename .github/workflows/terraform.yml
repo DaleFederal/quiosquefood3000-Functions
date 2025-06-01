@@ -87,6 +87,7 @@ jobs:
           terraform import google_pubsub_topic.customer_topic projects/${{ env.PROJECT_ID }}/topics/customer
           terraform import google_api_gateway_api.api projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api
           terraform import google_api_gateway_api_config.api_config projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config
+          terraform import google_api_gateway_gateway.gateway projects/${{ env.PROJECT_ID }}/locations/us-central1/gateways/customers-gateway
           set -e  # Re-enable exit on error
           echo "Import completed (some may have failed, which is normal)"
 
