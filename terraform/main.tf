@@ -183,6 +183,14 @@ resource "google_api_gateway_gateway" "gateway" {
   api_config = google_api_gateway_api_config.api_config.id
   gateway_id = "customers-gateway"
   region     = var.region
+
+  depends_on = [google_api_gateway_api_config.api_config]
+}
+
+resource "time_sleep" "wait_for_service_account" {
+  depends_on = [google_api_gateway_gateway.gateway]
+  
+  create_duration = "2m"
 }
 
 resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
@@ -191,10 +199,10 @@ resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
   cloud_function = google_cloudfunctions_function.create_customer.name
 
   role   = "roles/cloudfunctions.invoker"
-  member = "serviceAccount:${google_api_gateway_gateway.gateway.default_hostname}.uc.gateway.dev@${var.project_id}.iam.gserviceaccount.com"
+  member = "serviceAccount:${replace(google_api_gateway_gateway.gateway.default_hostname, ".", "-")}.uc.gateway.dev@${var.project_id}.iam.gserviceaccount.com"
 
   depends_on = [
-    google_api_gateway_gateway.gateway,
+    time_sleep.wait_for_service_account,
     google_cloudfunctions_function.create_customer
   ]
 }
