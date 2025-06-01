@@ -155,3 +155,42 @@ resource "google_cloudfunctions_function_iam_member" "invoker_authenticated" {
   role   = "roles/cloudfunctions.invoker"
   member = "allAuthenticatedUsers"
 }
+
+resource "google_api_gateway_api" "api" {
+  provider = google-beta
+  api_id = "customers-api"
+}
+
+resource "google_api_gateway_api_config" "api_config" {
+  provider     = google-beta
+  api          = google_api_gateway_api.api.api_id
+  api_config_id = "customers-config"
+  
+  openapi_documents {
+    document {
+      path = "openapi.yaml"
+      contents = filebase64("openapi.yaml")
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "google_api_gateway_gateway" "gateway" {
+  provider   = google-beta
+  api_config = google_api_gateway_api_config.api_config.id
+  gateway_id = "customers-gateway"
+}
+
+resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
+  project        = google_cloudfunctions_function.create_customer.project
+  region         = google_cloudfunctions_function.create_customer.region
+  cloud_function = google_cloudfunctions_function.create_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_api_gateway_gateway.gateway.default_hostname}.uc.gateway.dev@${var.project_id}.iam.gserviceaccount.com"
+
+  depends_on = [google_api_gateway_gateway.gateway]
+}
