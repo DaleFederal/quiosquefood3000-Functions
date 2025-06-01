@@ -86,6 +86,7 @@ jobs:
           terraform import google_bigquery_table.customers projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}
           terraform import google_pubsub_topic.customer_topic projects/${{ env.PROJECT_ID }}/topics/customer
           terraform import google_api_gateway_api.api projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api
+          terraform import google_api_gateway_api_config.api_config projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config
           set -e  # Re-enable exit on error
           echo "Import completed (some may have failed, which is normal)"
 
