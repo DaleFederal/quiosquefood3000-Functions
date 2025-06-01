@@ -156,14 +156,18 @@ resource "google_cloudfunctions_function_iam_member" "invoker_authenticated" {
   member = "allAuthenticatedUsers"
 }
 
+# Adicione estas configurações ao seu main.tf existente
+
+# Configuração da API Gateway
 resource "google_api_gateway_api" "customers_api" {
-  provider = google
+  provider = google-beta
   api_id   = "customers-api"
   project  = var.project_id
 }
 
+# Configuração da API Config (especificação OpenAPI)
 resource "google_api_gateway_api_config" "customers_api_config" {
-  provider      = google
+  provider      = google-beta
   api           = google_api_gateway_api.customers_api.api_id
   api_config_id = "customers-api-config"
   project       = var.project_id
@@ -194,7 +198,7 @@ resource "google_api_gateway_api_config" "customers_api_config" {
 }
 
 resource "google_api_gateway_gateway" "customers_gateway" {
-  provider   = google
+  provider   = google-beta
   api_config = google_api_gateway_api_config.customers_api_config.id
   gateway_id = "customers-gateway"
   project    = var.project_id
