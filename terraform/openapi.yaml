@@ -11,13 +11,17 @@ consumes:
   - "application/json"
 
 securityDefinitions:
+  api_key:
+    type: "apiKey"
+    name: "key"
+    in: "query"
   firebase_auth:
     authorizationUrl: ""
     flow: "implicit"
     type: "oauth2"
-    x-google-issuer: "https://securetoken.google.com/${project_id}"
+    x-google-issuer: "https://securetoken.google.com/quiosquefood3000"
     x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
-    x-google-audiences: "${project_id}"
+    x-google-audiences: "quiosquefood3000"
 
 paths:
   /customers:
@@ -25,37 +29,19 @@ paths:
       summary: "Criar novo cliente"
       operationId: "createCustomer"
       security:
+        - api_key: []
         - firebase_auth: []
       parameters:
         - name: "customer"
           in: "body"
           required: true
           schema:
-            type: "object"
-            required:
-              - "name"
-              - "email"
-              - "cpf"
-            properties:
-              name:
-                type: "string"
-                description: "Nome do cliente"
-              email:
-                type: "string"
-                description: "Email do cliente"
-              cpf:
-                type: "string"
-                description: "CPF do cliente"
+            $ref: "#/definitions/Customer"
       responses:
         201:
           description: "Cliente criado com sucesso"
           schema:
-            type: "object"
-            properties:
-              message:
-                type: "string"
-              messageId:
-                type: "string"
+            $ref: "#/definitions/ResponseMessage"
         400:
           description: "Dados inválidos"
         409:
@@ -63,12 +49,14 @@ paths:
         500:
           description: "Erro interno do servidor"
       x-google-backend:
-        address: "${create_customer_url}"
+        address: "https://us-central1-quiosquefood3000.cloudfunctions.net/create-customer"
+        protocol: "h2"
 
     get:
       summary: "Buscar cliente por CPF"
       operationId: "getCustomer"
       security:
+        - api_key: []
         - firebase_auth: []
       parameters:
         - name: "cpf"
@@ -80,18 +68,7 @@ paths:
         200:
           description: "Cliente encontrado"
           schema:
-            type: "array"
-            items:
-              type: "object"
-              properties:
-                id:
-                  type: "integer"
-                name:
-                  type: "string"
-                email:
-                  type: "string"
-                cpf:
-                  type: "string"
+            $ref: "#/definitions/Customer"
         404:
           description: "Cliente não encontrado"
         400:
@@ -99,12 +76,14 @@ paths:
         500:
           description: "Erro interno do servidor"
       x-google-backend:
-        address: "${get_customer_url}"
+        address: "https://us-central1-quiosquefood3000.cloudfunctions.net/get-customer"
+        protocol: "h2"
 
     put:
       summary: "Atualizar cliente por CPF"
       operationId: "updateCustomer"
       security:
+        - api_key: []
         - firebase_auth: []
       parameters:
         - name: "cpf"
@@ -116,33 +95,25 @@ paths:
           in: "body"
           required: true
           schema:
-            type: "object"
-            properties:
-              name:
-                type: "string"
-                description: "Nome do cliente"
-              email:
-                type: "string"
-                description: "Email do cliente"
+            $ref: "#/definitions/CustomerUpdate"
       responses:
         200:
           description: "Cliente atualizado com sucesso"
           schema:
-            type: "object"
-            properties:
-              message:
-                type: "string"
+            $ref: "#/definitions/ResponseMessage"
         400:
           description: "CPF é obrigatório"
         500:
           description: "Erro interno do servidor"
       x-google-backend:
-        address: "${update_customer_url}"
+        address: "https://us-central1-quiosquefood3000.cloudfunctions.net/update-customer"
+        protocol: "h2"
 
     delete:
       summary: "Excluir cliente por CPF"
       operationId: "deleteCustomer"
       security:
+        - api_key: []
         - firebase_auth: []
       parameters:
         - name: "cpf"
@@ -154,32 +125,69 @@ paths:
         200:
           description: "Cliente excluído com sucesso"
           schema:
-            type: "object"
-            properties:
-              message:
-                type: "string"
+            $ref: "#/definitions/ResponseMessage"
         400:
           description: "CPF é obrigatório"
         500:
           description: "Erro interno do servidor"
       x-google-backend:
-        address: "${delete_customer_url}"
+        address: "https://us-central1-quiosquefood3000.cloudfunctions.net/delete-customer"
+        protocol: "h2"
 
   /health:
     get:
       summary: "Health check"
       operationId: "healthCheck"
+      security:
+        - api_key: []
       responses:
         200:
           description: "API funcionando"
           schema:
-            type: "object"
-            properties:
-              status:
-                type: "string"
-                example: "healthy"
-              timestamp:
-                type: "string"
-                format: "date-time"
+            $ref: "#/definitions/HealthCheck"
       x-google-backend:
         address: "https://httpbin.org/get"
+        protocol: "h2"
+
+definitions:
+  Customer:
+    type: "object"
+    required:
+      - "name"
+      - "email"
+      - "cpf"
+    properties:
+      id:
+        type: "integer"
+      name:
+        type: "string"
+      email:
+        type: "string"
+      cpf:
+        type: "string"
+
+  CustomerUpdate:
+    type: "object"
+    properties:
+      name:
+        type: "string"
+      email:
+        type: "string"
+
+  ResponseMessage:
+    type: "object"
+    properties:
+      message:
+        type: "string"
+      messageId:
+        type: "string"
+
+  HealthCheck:
+    type: "object"
+    properties:
+      status:
+        type: "string"
+        example: "healthy"
+      timestamp:
+        type: "string"
+        format: "date-time"
