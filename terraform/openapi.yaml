@@ -1,133 +1,185 @@
-swagger: '2.0'
+swagger: "2.0"
 info:
-  title: Customer API
-  version: 1.0.0
-host: us-central1-quiosquefood3000.cloudfunctions.net
+  title: "QuiosqueFood Customer API"
+  description: "API para gerenciamento de clientes do QuiosqueFood"
+  version: "1.0.0"
 schemes:
-  - https
+  - "https"
+produces:
+  - "application/json"
+consumes:
+  - "application/json"
+
 securityDefinitions:
-  firebase:
-    type: oauth2
+  firebase_auth:
     authorizationUrl: ""
-    flow: implicit
-    x-google-issuer: https://securetoken.google.com/quiosquefood3000
-    x-google-jwks_uri: https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com
-    x-google-audiences: quiosquefood3000
+    flow: "implicit"
+    type: "oauth2"
+    x-google-issuer: "https://securetoken.google.com/${project_id}"
+    x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+    x-google-audiences: "${project_id}"
 
 paths:
-  /create-customer:
+  /customers:
     post:
-      operationId: create-customer
+      summary: "Criar novo cliente"
+      operationId: "createCustomer"
       security:
-        - firebase: []
+        - firebase_auth: []
       parameters:
-        - in: body
-          name: body
+        - name: "customer"
+          in: "body"
           required: true
           schema:
-            type: object
+            type: "object"
             required:
-              - name
-              - email
-              - cpf
+              - "name"
+              - "email"
+              - "cpf"
             properties:
               name:
-                type: string
+                type: "string"
+                description: "Nome do cliente"
               email:
-                type: string
+                type: "string"
+                description: "Email do cliente"
               cpf:
-                type: string
+                type: "string"
+                description: "CPF do cliente"
       responses:
-        200:
-          description: Success
-        401:
-          description: Unauthorized
-        500:
-          description: Internal Server Error
-      x-google-backend:
-        address: https://us-central1-quiosquefood3000.cloudfunctions.net/create-customer
-
-  /update-customer:
-    put:
-      operationId: update-customer
-      security:
-        - firebase: []
-      parameters:
-        - in: body
-          name: body
-          required: true
+        201:
+          description: "Cliente criado com sucesso"
           schema:
-            type: object
-            required:
-              - cpf
+            type: "object"
             properties:
-              name:
-                type: string
-              email:
-                type: string
-              cpf:
-                type: string
-      responses:
-        200:
-          description: Success
-        401:
-          description: Unauthorized
-        404:
-          description: Customer not found
+              message:
+                type: "string"
+              messageId:
+                type: "string"
+        400:
+          description: "Dados inválidos"
+        409:
+          description: "CPF já cadastrado"
         500:
-          description: Internal Server Error
+          description: "Erro interno do servidor"
       x-google-backend:
-        address: https://us-central1-quiosquefood3000.cloudfunctions.net/update-customer
+        address: "${create_customer_url}"
 
-  /delete-customer:
-    delete:
-      operationId: delete-customer
-      security:
-        - firebase: []
-      parameters:
-        - in: body
-          name: body
-          required: true
-          schema:
-            type: object
-            required:
-              - cpf
-            properties:
-              cpf:
-                type: string
-      responses:
-        200:
-          description: Success
-        401:
-          description: Unauthorized
-        404:
-          description: Customer not found
-        500:
-          description: Internal Server Error
-      x-google-backend:
-        address: https://us-central1-quiosquefood3000.cloudfunctions.net/delete-customer
-
-  /pesquisar-customer:
     get:
-      operationId: pesquisar-customer
+      summary: "Buscar cliente por CPF"
+      operationId: "getCustomer"
       security:
-        - firebase: []
+        - firebase_auth: []
       parameters:
-        - name: cpf
-          in: query
+        - name: "cpf"
+          in: "query"
           required: true
-          type: string
+          type: "string"
+          description: "CPF do cliente"
       responses:
         200:
-          description: Success
-        401:
-          description: Unauthorized
+          description: "Cliente encontrado"
+          schema:
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                id:
+                  type: "integer"
+                name:
+                  type: "string"
+                email:
+                  type: "string"
+                cpf:
+                  type: "string"
         404:
-          description: Customer not found
+          description: "Cliente não encontrado"
+        400:
+          description: "CPF é obrigatório"
         500:
-          description: Internal Server Error
+          description: "Erro interno do servidor"
       x-google-backend:
-        address: https://us-central1-quiosquefood3000.cloudfunctions.net/pesquisar-customer
+        address: "${get_customer_url}"
 
-security:
-  - firebase: []
+    put:
+      summary: "Atualizar cliente por CPF"
+      operationId: "updateCustomer"
+      security:
+        - firebase_auth: []
+      parameters:
+        - name: "cpf"
+          in: "query"
+          required: true
+          type: "string"
+          description: "CPF do cliente"
+        - name: "customer"
+          in: "body"
+          required: true
+          schema:
+            type: "object"
+            properties:
+              name:
+                type: "string"
+                description: "Nome do cliente"
+              email:
+                type: "string"
+                description: "Email do cliente"
+      responses:
+        200:
+          description: "Cliente atualizado com sucesso"
+          schema:
+            type: "object"
+            properties:
+              message:
+                type: "string"
+        400:
+          description: "CPF é obrigatório"
+        500:
+          description: "Erro interno do servidor"
+      x-google-backend:
+        address: "${update_customer_url}"
+
+    delete:
+      summary: "Excluir cliente por CPF"
+      operationId: "deleteCustomer"
+      security:
+        - firebase_auth: []
+      parameters:
+        - name: "cpf"
+          in: "query"
+          required: true
+          type: "string"
+          description: "CPF do cliente"
+      responses:
+        200:
+          description: "Cliente excluído com sucesso"
+          schema:
+            type: "object"
+            properties:
+              message:
+                type: "string"
+        400:
+          description: "CPF é obrigatório"
+        500:
+          description: "Erro interno do servidor"
+      x-google-backend:
+        address: "${delete_customer_url}"
+
+  /health:
+    get:
+      summary: "Health check"
+      operationId: "healthCheck"
+      responses:
+        200:
+          description: "API funcionando"
+          schema:
+            type: "object"
+            properties:
+              status:
+                type: "string"
+                example: "healthy"
+              timestamp:
+                type: "string"
+                format: "date-time"
+      x-google-backend:
+        address: "https://httpbin.org/get"
