@@ -182,6 +182,7 @@ resource "google_api_gateway_gateway" "gateway" {
   provider   = google-beta
   api_config = google_api_gateway_api_config.api_config.id
   gateway_id = "customers-gateway"
+  region = var.region
 }
 
 resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
