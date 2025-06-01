@@ -3,7 +3,6 @@ const instancia = new BigQuery();
 
 module.exports = async function inserirCustomer({ name, email, cpf }) {
   try {
-    // Usar uma query única para gerar ID incremental e inserir atomicamente
     const insertQuery = `
       INSERT INTO \`quiosquefood3000.QuiosqueFood.customers\` (id, name, email, cpf)
       SELECT 
@@ -22,7 +21,6 @@ module.exports = async function inserirCustomer({ name, email, cpf }) {
     const [rows] = await instancia.query(options);
     console.log('Inserção executada:', rows);
 
-    // Buscar o ID que foi gerado para retornar
     const getIdQuery = `
       SELECT id FROM \`quiosquefood3000.QuiosqueFood.customers\`
       WHERE cpf = @cpf

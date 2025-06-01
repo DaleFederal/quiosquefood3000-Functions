@@ -155,3 +155,110 @@ resource "google_cloudfunctions_function_iam_member" "invoker_authenticated" {
   role   = "roles/cloudfunctions.invoker"
   member = "allAuthenticatedUsers"
 }
+
+resource "google_api_gateway_api" "customers_api" {
+  provider = google
+  api_id   = "customers-api"
+  project  = var.project_id
+}
+
+resource "google_api_gateway_api_config" "customers_api_config" {
+  provider      = google
+  api           = google_api_gateway_api.customers_api.api_id
+  api_config_id = "customers-api-config"
+  project       = var.project_id
+
+  openapi_documents {
+    document {
+      path     = "openapi.yaml"
+      contents = base64encode(templatefile("${path.module}/openapi.yaml", {
+        create_customer_url  = google_cloudfunctions_function.create_customer.https_trigger_url
+        get_customer_url     = google_cloudfunctions_function.get_customer.https_trigger_url
+        update_customer_url  = google_cloudfunctions_function.update_customer.https_trigger_url
+        delete_customer_url  = google_cloudfunctions_function.delete_customer.https_trigger_url
+        project_id          = var.project_id
+      }))
+    }
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+
+  depends_on = [
+    google_cloudfunctions_function.create_customer,
+    google_cloudfunctions_function.get_customer,
+    google_cloudfunctions_function.update_customer,
+    google_cloudfunctions_function.delete_customer
+  ]
+}
+
+resource "google_api_gateway_gateway" "customers_gateway" {
+  provider   = google
+  api_config = google_api_gateway_api_config.customers_api_config.id
+  gateway_id = "customers-gateway"
+  project    = var.project_id
+  region     = var.region
+
+  depends_on = [google_api_gateway_api_config.customers_api_config]
+}
+
+resource "google_project_service" "apigateway_api" {
+  service = "apigateway.googleapis.com"
+  project = var.project_id
+
+  disable_dependent_services = true
+  disable_on_destroy         = false
+}
+
+resource "google_project_service" "servicecontrol_api" {
+  service = "servicecontrol.googleapis.com"
+  project = var.project_id
+
+  disable_dependent_services = true
+  disable_on_destroy         = false
+}
+
+resource "google_project_service" "servicemanagement_api" {
+  service = "servicemanagement.googleapis.com"
+  project = var.project_id
+
+  disable_dependent_services = true
+  disable_on_destroy         = false
+}
+
+resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
+  project        = google_cloudfunctions_function.create_customer.project
+  region         = google_cloudfunctions_function.create_customer.region
+  cloud_function = google_cloudfunctions_function.create_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_api_gateway_gateway.customers_gateway.default_hostname}@${var.project_id}.iam.gserviceaccount.com"
+}
+
+resource "google_cloudfunctions_function_iam_member" "gateway_invoker_get" {
+  project        = google_cloudfunctions_function.get_customer.project
+  region         = google_cloudfunctions_function.get_customer.region
+  cloud_function = google_cloudfunctions_function.get_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_api_gateway_gateway.customers_gateway.default_hostname}@${var.project_id}.iam.gserviceaccount.com"
+}
+
+resource "google_cloudfunctions_function_iam_member" "gateway_invoker_update" {
+  project        = google_cloudfunctions_function.update_customer.project
+  region         = google_cloudfunctions_function.update_customer.region
+  cloud_function = google_cloudfunctions_function.update_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_api_gateway_gateway.customers_gateway.default_hostname}@${var.project_id}.iam.gserviceaccount.com"
+}
+
+resource "google_cloudfunctions_function_iam_member" "gateway_invoker_delete" {
+  project        = google_cloudfunctions_function.delete_customer.project
+  region         = google_cloudfunctions_function.delete_customer.region
+  cloud_function = google_cloudfunctions_function.delete_customer.name
+
+  role   = "roles/cloudfunctions.invoker"
+  member = "serviceAccount:${google_api_gateway_gateway.customers_gateway.default_hostname}@${var.project_id}.iam.gserviceaccount.com"
+}
