@@ -182,7 +182,7 @@ resource "google_api_gateway_gateway" "gateway" {
   provider   = google-beta
   api_config = google_api_gateway_api_config.api_config.id
   gateway_id = "customers-gateway"
-  region = var.region
+  region     = var.region
 }
 
 resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
@@ -193,5 +193,8 @@ resource "google_cloudfunctions_function_iam_member" "gateway_invoker_create" {
   role   = "roles/cloudfunctions.invoker"
   member = "serviceAccount:${google_api_gateway_gateway.gateway.default_hostname}.uc.gateway.dev@${var.project_id}.iam.gserviceaccount.com"
 
-  depends_on = [google_api_gateway_gateway.gateway]
+  depends_on = [
+    google_api_gateway_gateway.gateway,
+    google_cloudfunctions_function.create_customer
+  ]
 }
