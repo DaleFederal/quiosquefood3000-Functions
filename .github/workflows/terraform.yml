@@ -88,7 +88,7 @@ jobs:
           terraform import google_api_gateway_api.api projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api
           terraform import google_api_gateway_api_config.api_config projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config
           terraform import google_api_gateway_gateway.gateway projects/${{ env.PROJECT_ID }}/locations/us-central1/gateways/customers-gateway
-          terraform import google_service_account.gateway_invoker projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+          terraform import google_service_account.gateway_invoker "projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
           set -e  # Re-enable exit on error
           echo "Import completed (some may have failed, which is normal)"
 
