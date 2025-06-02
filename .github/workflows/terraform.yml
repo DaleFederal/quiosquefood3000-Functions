@@ -101,38 +101,57 @@ jobs:
             fi
           }
           
+          # Function to check if resource exists in GCP
+          check_and_import() {
+            local resource_name=$1
+            local resource_id=$2
+            local check_command=$3
+            
+            if [ -n "$check_command" ]; then
+              echo "Checking if resource exists in GCP: $check_command"
+              if eval "$check_command" > /dev/null 2>&1; then
+                echo "Resource exists in GCP, importing..."
+                import_resource "$resource_name" "$resource_id"
+              else
+                echo "Resource does not exist in GCP yet, skipping import"
+              fi
+            else
+              # If no check command, try to import directly
+              import_resource "$resource_name" "$resource_id"
+            fi
+          }
+          
           # Import resources that are causing conflicts
           echo "=== Importing Storage Bucket ==="
-          import_resource "google_storage_bucket.function_bucket" "${{ env.BUCKET_NAME }}"
+          check_and_import "google_storage_bucket.function_bucket" "${{ env.BUCKET_NAME }}" "gsutil ls gs://${{ env.BUCKET_NAME }}"
           
           echo "=== Importing BigQuery Dataset ==="
-          import_resource "google_bigquery_dataset.dataset" "projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}"
+          check_and_import "google_bigquery_dataset.dataset" "projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}" "bq ls ${{ env.DATASET_ID }}"
           
           echo "=== Importing BigQuery Table ==="
-          import_resource "google_bigquery_table.customers" "projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}"
+          check_and_import "google_bigquery_table.customers" "projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}" "bq ls ${{ env.DATASET_ID }} | grep ${{ env.TABLE_ID }}"
           
           echo "=== Importing PubSub Topic ==="
-          import_resource "google_pubsub_topic.customer_topic" "projects/${{ env.PROJECT_ID }}/topics/customer"
+          check_and_import "google_pubsub_topic.customer_topic" "projects/${{ env.PROJECT_ID }}/topics/customer" "gcloud pubsub topics describe customer"
           
           echo "=== Importing API Gateway API ==="
-          import_resource "google_api_gateway_api.api" "projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api"
+          check_and_import "google_api_gateway_api.api" "projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api" "gcloud api-gateway apis describe customers-api"
           
           echo "=== Importing Service Account ==="
-          import_resource "google_service_account.gateway_invoker" "projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
+          check_and_import "google_service_account.gateway_invoker" "projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com" "gcloud iam service-accounts describe gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
           
           echo "=== Importing Cloud Functions ==="
-          import_resource "google_cloudfunctions_function.create_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer"
-          import_resource "google_cloudfunctions_function.get_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer"
-          import_resource "google_cloudfunctions_function.update_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer"
-          import_resource "google_cloudfunctions_function.delete_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer"
-          import_resource "google_cloudfunctions_function.customer_pubsub_messenger" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/customer-pubsub-messenger"
+          check_and_import "google_cloudfunctions_function.create_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer" "gcloud functions describe create-customer --region=us-central1"
+          check_and_import "google_cloudfunctions_function.get_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer" "gcloud functions describe get-customer --region=us-central1"
+          check_and_import "google_cloudfunctions_function.update_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer" "gcloud functions describe update-customer --region=us-central1"
+          check_and_import "google_cloudfunctions_function.delete_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer" "gcloud functions describe delete-customer --region=us-central1"
+          check_and_import "google_cloudfunctions_function.customer_pubsub_messenger" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/customer-pubsub-messenger" "gcloud functions describe customer-pubsub-messenger --region=us-central1"
           
-          # Try to import API Gateway Config and Gateway (may not exist yet)
-          echo "=== Importing API Gateway Config (if exists) ==="
-          import_resource "google_api_gateway_api_config.api_config" "projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config"
+          echo "=== Importing API Gateway Config ==="
+          check_and_import "google_api_gateway_api_config.api_config" "projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config" "gcloud api-gateway api-configs describe customers-config --api=customers-api"
           
-          echo "=== Importing API Gateway Gateway (if exists) ==="
-          import_resource "google_api_gateway_gateway.gateway" "projects/${{ env.PROJECT_ID }}/locations/us-central1/gateways/customers-gateway"
+          echo "=== Importing API Gateway Gateway ==="
+          check_and_import "google_api_gateway_gateway.gateway" "projects/${{ env.PROJECT_ID }}/locations/us-central1/gateways/customers-gateway" "gcloud api-gateway gateways describe customers-gateway --location=us-central1"
           
           set -e  # Re-enable exit on error
           
