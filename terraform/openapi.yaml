@@ -10,13 +10,11 @@ produces:
 consumes:
   - "application/json"
 
-securityDefinitions:
-  firebase_auth:
-    type: "oauth2"
-    flow: "implicit"
-    x-google-issuer: "https://securetoken.google.com/quiosquefood3000"
-    x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
-    x-google-audiences: "quiosquefood3000"
+firebase_auth:
+  type: "oauth2"
+  x-google-issuer: "https://securetoken.google.com/quiosquefood3000"
+  x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+  x-google-audiences: "quiosquefood3000"
 
 paths:
   /customers:
