@@ -216,21 +216,3 @@ resource "google_cloudfunctions_function_iam_member" "gateway_invoker_get" {
   role           = "roles/cloudfunctions.invoker"
   member         = "serviceAccount:${google_service_account.gateway_invoker.email}"
 }
-
-# Permissão para o API Gateway invocar as funções
-resource "google_project_iam_member" "gateway_service_agent" {
-  project = var.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${google_service_account.gateway_invoker.email}"
-}
-
-# Permissão para a conta de serviço padrão do API Gateway
-resource "google_project_iam_member" "api_gateway_service_agent" {
-  project = var.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:service-${data.google_project.project.number}@gcp-sa-apigateway.iam.gserviceaccount.com"
-}
-
-data "google_project" "project" {
-  project_id = var.project_id
-}

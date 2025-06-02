@@ -18,13 +18,7 @@ securityDefinitions:
     x-google-issuer: "https://securetoken.google.com/quiosquefood3000"
     x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
     x-google-audiences: "quiosquefood3000"
-    x-google-backend:
-      address: "https://us-central1-quiosquefood3000.cloudfunctions.net/create-customer"
-      protocol: "h2"
-      path_translation: "APPEND_PATH_TO_ADDRESS"
-      jwt_audience: "quiosquefood3000"
-      disable_auth: false
-
+    
 paths:
   /customers:
     post:
@@ -52,6 +46,10 @@ paths:
       x-google-backend:
         address: "https://us-central1-quiosquefood3000.cloudfunctions.net/create-customer"
         protocol: "h2"
+        path_translation: "APPEND_PATH_TO_ADDRESS"
+        jwt_audience: "quiosquefood3000"
+        disable_auth: false
+
 
     get:
       summary: "Buscar cliente por CPF"
@@ -78,6 +76,9 @@ paths:
       x-google-backend:
         address: "https://us-central1-quiosquefood3000.cloudfunctions.net/get-customer"
         protocol: "h2"
+        path_translation: "APPEND_PATH_TO_ADDRESS"
+        jwt_audience: "quiosquefood3000"
+        disable_auth: false
 
     put:
       summary: "Atualizar cliente por CPF"
@@ -107,6 +108,9 @@ paths:
       x-google-backend:
         address: "https://us-central1-quiosquefood3000.cloudfunctions.net/update-customer"
         protocol: "h2"
+        path_translation: "APPEND_PATH_TO_ADDRESS"
+        jwt_audience: "quiosquefood3000"
+        disable_auth: false
 
     delete:
       summary: "Excluir cliente por CPF"
@@ -131,6 +135,9 @@ paths:
       x-google-backend:
         address: "https://us-central1-quiosquefood3000.cloudfunctions.net/delete-customer"
         protocol: "h2"
+        path_translation: "APPEND_PATH_TO_ADDRESS"
+        jwt_audience: "quiosquefood3000"
+        disable_auth: false
 
   /health:
     get:
