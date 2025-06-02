@@ -123,7 +123,13 @@ jobs:
         run: |
           cd terraform
           terraform plan -var-file=terraform.tfvars
-
+          
+      - name: Clean up conflicting API Config
+        run: |
+          gcloud api-gateway api-configs list --api=customers-api --format="value(CONFIG_ID)" \
+          | grep "^customers-config" \
+          | xargs -I {} gcloud api-gateway api-configs delete {} --api=customers-api --quiet || true
+          
       - name: Terraform Apply
         run: |
           cd terraform
