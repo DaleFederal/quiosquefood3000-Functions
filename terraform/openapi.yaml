@@ -11,14 +11,9 @@ consumes:
   - "application/json"
 
 securityDefinitions:
-  api_key:
-    type: "apiKey"
-    name: "key"
-    in: "query"
   firebase_auth:
-    authorizationUrl: ""
-    flow: "implicit"
     type: "oauth2"
+    flow: "implicit"
     x-google-issuer: "https://securetoken.google.com/quiosquefood3000"
     x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
     x-google-audiences: "quiosquefood3000"
@@ -29,7 +24,6 @@ paths:
       summary: "Criar novo cliente"
       operationId: "createCustomer"
       security:
-        - api_key: []
         - firebase_auth: []
       parameters:
         - name: "customer"
