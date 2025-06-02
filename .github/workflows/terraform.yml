@@ -1,28 +1,26 @@
-name: Deploy QuiosqueFood API
+name: Package and Deploy Functions
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
+
     permissions:
-      contents: 'read'
-      id-token: 'write'
+      contents: read
+      id-token: write
 
     env:
       PROJECT_ID: ${{ secrets.GCP_PROJECT || 'quiosquefood3000' }}
-      REGION: 'us-central1'
-      DATASET_ID: 'QuiosqueFood'
-      TABLE_ID: 'customers'
-      BUCKET_NAME: 'function-bucket-quiosquefood'
-      API_ID: 'customers-api'
-      GATEWAY_ID: 'customers-gateway'
+      DATASET_ID: QuiosqueFood
+      TABLE_ID: customers
+      BUCKET_NAME: function-bucket-quiosquefood
 
     steps:
-      # Configuração inicial
       - name: Checkout repository
         uses: actions/checkout@v3
 
@@ -31,100 +29,119 @@ jobs:
         with:
           node-version: '20'
 
-      # Build das funções
       - name: Install dependencies
         run: |
           cd functions
           npm ci
 
-      - name: Generate unique build ID
-        id: build-id
+      - name: Generate unique ZIP name with timestamp and commit
+        id: zip-name
         run: |
-          BUILD_ID="$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
-          echo "BUILD_ID=${BUILD_ID}" >> $GITHUB_OUTPUT
-          echo "ZIP_NAME=function-source-${BUILD_ID}.zip" >> $GITHUB_OUTPUT
-          echo "API_CONFIG_ID=config-${BUILD_ID}" >> $GITHUB_OUTPUT
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          COMMIT_SHORT=$(echo ${{ github.sha }} | cut -c1-7)
+          ZIP_NAME="function-source-${TIMESTAMP}-${COMMIT_SHORT}.zip"
+          echo "ZIP_NAME=${ZIP_NAME}" >> $GITHUB_OUTPUT
+          echo "Generated ZIP name: ${ZIP_NAME}"
 
-      - name: Create deployment package
+      - name: Create ZIP package
         run: |
           cd functions
-          zip -r ../${{ steps.build-id.outputs.ZIP_NAME }} . \
-            -x "node_modules/*" "*.git*" "*.DS_Store*" "test/*"
+          # Remove any existing ZIP files
+          rm -f ../*.zip
+          # Create new ZIP with all function files
+          zip -r ../${{ steps.zip-name.outputs.ZIP_NAME }} . -x "node_modules/*" "*.git*" "*.DS_Store*"
+          
+      - name: Verify ZIP contents
+        run: |
+          echo "ZIP file size:"
+          ls -lh ${{ steps.zip-name.outputs.ZIP_NAME }}
+          echo "ZIP contents:"
+          unzip -l ${{ steps.zip-name.outputs.ZIP_NAME }}
 
-      # Autenticação no GCP
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v1
+      - name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v1
+      - name: Setup Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-      # Gerenciamento do Storage
-      - name: Upload function package
-        run: |
-          gsutil cp ${{ steps.build-id.outputs.ZIP_NAME }} gs://${{ env.BUCKET_NAME }}/
-
-      # Configuração do Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
 
       - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      # Importação segura de recursos existentes
-      - name: Import existing infrastructure
+      - name: Import existing resources (ignore errors)
         run: |
           cd terraform
-          set +e
+          set +e  # Continue on errors
           terraform import google_storage_bucket.function_bucket ${{ env.BUCKET_NAME }}
+          terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer
+          terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer
+          terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer
+          terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer
+          terraform import google_cloudfunctions_function.customer_pubsub_messenger projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/customer-pubsub-messenger
           terraform import google_bigquery_dataset.dataset ${{ env.DATASET_ID }}
           terraform import google_bigquery_table.customers projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}
           terraform import google_pubsub_topic.customer_topic projects/${{ env.PROJECT_ID }}/topics/customer
-          terraform import google_api_gateway_api.api projects/${{ env.PROJECT_ID }}/locations/global/apis/${{ env.API_ID }}
-          terraform import google_service_account.gateway_invoker projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
-          
-          # Importar funções Cloud existentes
-          terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/create-customer
-          terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/get-customer
-          terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/update-customer
-          terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/delete-customer
-          terraform import google_cloudfunctions_function.customer_pubsub_messenger projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/customer-pubsub-messenger
-          set -e
+          terraform import google_api_gateway_api.api projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api
+          terraform import google_api_gateway_api_config.api_config projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config
+          terraform import google_api_gateway_gateway.gateway projects/${{ env.PROJECT_ID }}/locations/us-central1/gateways/customers-gateway
+          terraform import google_service_account.gateway_invoker "projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
+          set -e  # Re-enable exit on error
+          echo "Import completed (some may have failed, which is normal)"
 
-      # Limpeza de configurações antigas
-      - name: Clean previous API Configs
+      - name: Upload new ZIP to Google Cloud Storage
         run: |
-          CURRENT_CONFIG=${{ steps.build-id.outputs.API_CONFIG_ID }}
-          gcloud api-gateway api-configs list --api=${{ env.API_ID }} --format="value(CONFIG_ID)" \
-          | grep -v "^${CURRENT_CONFIG}$" \
-          | xargs -I {} gcloud api-gateway api-configs delete {} --api=${{ env.API_ID }} --quiet || true
+          # Remove old ZIP files from bucket
+          gsutil -m rm gs://${{ env.BUCKET_NAME }}/function-source*.zip || true
+          
+          # Upload new ZIP
+          gsutil cp ${{ steps.zip-name.outputs.ZIP_NAME }} gs://${{ env.BUCKET_NAME }}/
 
-      # Aplicação do Terraform
+      - name: Verify ZIP upload
+        run: |
+          echo "Current bucket contents:"
+          gsutil ls -l gs://${{ env.BUCKET_NAME }}/
+
+      - name: Update Terraform variables
+        run: |
+          cd terraform
+          # Create or update terraform.tfvars with new ZIP name
+          cat > terraform.tfvars << EOF
+          project_id = "${{ env.PROJECT_ID }}"
+          region = "us-central1"
+          bucket_name = "${{ env.BUCKET_NAME }}"
+          zip_object = "${{ steps.zip-name.outputs.ZIP_NAME }}"
+          EOF
+          
+          echo "Terraform variables:"
+          cat terraform.tfvars
+
+      - name: Terraform Plan
+        run: |
+          cd terraform
+          terraform plan -var-file=terraform.tfvars
+          
+      - name: Clean up conflicting API Config
+        run: |
+          gcloud api-gateway api-configs list --api=customers-api --format="value(CONFIG_ID)" \
+          | grep "^customers-config" \
+          | xargs -I {} gcloud api-gateway api-configs delete {} --api=customers-api --quiet || true
+          
       - name: Terraform Apply
         run: |
           cd terraform
-          cat > terraform.auto.tfvars << EOF
-          project_id = "${{ env.PROJECT_ID }}"
-          region = "${{ env.REGION }}"
-          bucket_name = "${{ env.BUCKET_NAME }}"
-          zip_object = "${{ steps.build-id.outputs.ZIP_NAME }}"
-          api_config_id = "${{ steps.build-id.outputs.API_CONFIG_ID }}"
-          EOF
-          
-          terraform apply -auto-approve
+          terraform apply -var-file=terraform.tfvars -auto-approve
 
-      # Verificação final
       - name: Verify deployment
         run: |
-          echo "=== Cloud Functions ==="
-          gcloud functions list --format="table(name,status,trigger)"
+          echo "Listing Cloud Functions:"
+          gcloud functions list
           
-          echo "\n=== API Gateway ==="
-          GATEWAY_URL=$(gcloud api-gateway gateways describe ${{ env.GATEWAY_ID }} \
-            --location=${{ env.REGION }} \
-            --format="value(defaultHostname)")
-          echo "Gateway URL: https://${GATEWAY_URL}"
+          echo "Checking PubSub topics:"
+          gcloud pubsub topics list
           
-          echo "\n=== Test Health Check ==="
-          curl -s "https://${GATEWAY_URL}/health" | jq
+          echo "Testing create-customer function (if accessible):"
+          gcloud functions describe create-customer || echo "Function not found or not accessible"
