@@ -72,25 +72,19 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      - name: Import existing resources (ignore errors)
+      - name: Check existing resources
         run: |
-          cd terraform
-          set +e  # Continue on errors
-          terraform import google_storage_bucket.function_bucket ${{ env.BUCKET_NAME }}
-          terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer
-          terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer
-          terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer
-          terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer
-          terraform import google_cloudfunctions_function.customer_pubsub_messenger projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/customer-pubsub-messenger
-          terraform import google_bigquery_dataset.dataset ${{ env.DATASET_ID }}
-          terraform import google_bigquery_table.customers projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}
-          terraform import google_pubsub_topic.customer_topic projects/${{ env.PROJECT_ID }}/topics/customer
-          terraform import google_api_gateway_api.api projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api
-          terraform import google_api_gateway_api_config.api_config projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config
-          terraform import google_api_gateway_gateway.gateway projects/${{ env.PROJECT_ID }}/locations/us-central1/gateways/customers-gateway
-          terraform import google_service_account.gateway_invoker "projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
-          set -e  # Re-enable exit on error
-          echo "Import completed (some may have failed, which is normal)"
+          echo "Checking existing resources in GCP:"
+          echo "=== Cloud Functions ==="
+          gcloud functions list --filter="name:*customer*" || true
+          echo "=== PubSub Topics ==="
+          gcloud pubsub topics list --filter="name:*customer*" || true
+          echo "=== BigQuery Datasets ==="
+          bq ls ${{ env.DATASET_ID }} || true
+          echo "=== API Gateway APIs ==="
+          gcloud api-gateway apis list || true
+          echo "=== Storage Buckets ==="
+          gsutil ls gs://${{ env.BUCKET_NAME }}/ || true
 
       - name: Upload new ZIP to Google Cloud Storage
         run: |
@@ -119,17 +113,22 @@ jobs:
           echo "Terraform variables:"
           cat terraform.tfvars
 
-      - name: Terraform Plan
+      - name: Terraform Plan with detailed output
         run: |
           cd terraform
-          terraform plan -var-file=terraform.tfvars
-          
-      - name: Clean up conflicting API Config
-        run: |
-          gcloud api-gateway api-configs list --api=customers-api --format="value(CONFIG_ID)" \
-          | grep "^customers-config" \
-          | xargs -I {} gcloud api-gateway api-configs delete {} --api=customers-api --quiet || true
-          
+          terraform plan -var-file=terraform.tfvars -detailed-exitcode || {
+            exit_code=$?
+            if [ $exit_code -eq 2 ]; then
+              echo "Changes detected, will apply"
+              exit 0
+            elif [ $exit_code -eq 1 ]; then
+              echo "Terraform plan failed"
+              exit 1
+            else
+              echo "No changes detected"
+            fi
+          }
+
       - name: Terraform Apply
         run: |
           cd terraform
