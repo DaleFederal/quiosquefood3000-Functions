@@ -83,6 +83,13 @@ jobs:
           terraform import google_pubsub_topic.customer_topic projects/${{ env.PROJECT_ID }}/topics/customer
           terraform import google_api_gateway_api.api projects/${{ env.PROJECT_ID }}/locations/global/apis/${{ env.API_ID }}
           terraform import google_service_account.gateway_invoker projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+          
+          # Importar funções Cloud existentes
+          terraform import google_cloudfunctions_function.create_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/create-customer
+          terraform import google_cloudfunctions_function.get_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/get-customer
+          terraform import google_cloudfunctions_function.update_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/update-customer
+          terraform import google_cloudfunctions_function.delete_customer projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/delete-customer
+          terraform import google_cloudfunctions_function.customer_pubsub_messenger projects/${{ env.PROJECT_ID }}/locations/${{ env.REGION }}/functions/customer-pubsub-messenger
           set -e
 
       # Limpeza de configurações antigas
