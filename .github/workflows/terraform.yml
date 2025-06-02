@@ -72,9 +72,77 @@ jobs:
       - name: Terraform Init
         run: terraform -chdir=terraform init
 
-      - name: Check existing resources
+      - name: Import existing resources to Terraform state
         run: |
-          echo "Checking existing resources in GCP:"
+          cd terraform
+          set +e  # Continue on errors
+          
+          echo "Checking current Terraform state..."
+          terraform state list
+          
+          # Function to safely import resource
+          import_resource() {
+            local resource_name=$1
+            local resource_id=$2
+            
+            echo "Checking if $resource_name exists in state..."
+            if terraform state show "$resource_name" > /dev/null 2>&1; then
+              echo "$resource_name already exists in state, skipping import"
+              return 0
+            fi
+            
+            echo "Importing $resource_name with ID: $resource_id"
+            if terraform import "$resource_name" "$resource_id"; then
+              echo "Successfully imported $resource_name"
+              return 0
+            else
+              echo "Failed to import $resource_name, continuing..."
+              return 1
+            fi
+          }
+          
+          # Import resources that are causing conflicts
+          echo "=== Importing Storage Bucket ==="
+          import_resource "google_storage_bucket.function_bucket" "${{ env.BUCKET_NAME }}"
+          
+          echo "=== Importing BigQuery Dataset ==="
+          import_resource "google_bigquery_dataset.dataset" "projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}"
+          
+          echo "=== Importing BigQuery Table ==="
+          import_resource "google_bigquery_table.customers" "projects/${{ env.PROJECT_ID }}/datasets/${{ env.DATASET_ID }}/tables/${{ env.TABLE_ID }}"
+          
+          echo "=== Importing PubSub Topic ==="
+          import_resource "google_pubsub_topic.customer_topic" "projects/${{ env.PROJECT_ID }}/topics/customer"
+          
+          echo "=== Importing API Gateway API ==="
+          import_resource "google_api_gateway_api.api" "projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api"
+          
+          echo "=== Importing Service Account ==="
+          import_resource "google_service_account.gateway_invoker" "projects/${{ env.PROJECT_ID }}/serviceAccounts/gateway-invoker@${{ env.PROJECT_ID }}.iam.gserviceaccount.com"
+          
+          echo "=== Importing Cloud Functions ==="
+          import_resource "google_cloudfunctions_function.create_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/create-customer"
+          import_resource "google_cloudfunctions_function.get_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/get-customer"
+          import_resource "google_cloudfunctions_function.update_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/update-customer"
+          import_resource "google_cloudfunctions_function.delete_customer" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/delete-customer"
+          import_resource "google_cloudfunctions_function.customer_pubsub_messenger" "projects/${{ env.PROJECT_ID }}/locations/us-central1/functions/customer-pubsub-messenger"
+          
+          # Try to import API Gateway Config and Gateway (may not exist yet)
+          echo "=== Importing API Gateway Config (if exists) ==="
+          import_resource "google_api_gateway_api_config.api_config" "projects/${{ env.PROJECT_ID }}/locations/global/apis/customers-api/configs/customers-config"
+          
+          echo "=== Importing API Gateway Gateway (if exists) ==="
+          import_resource "google_api_gateway_gateway.gateway" "projects/${{ env.PROJECT_ID }}/locations/us-central1/gateways/customers-gateway"
+          
+          set -e  # Re-enable exit on error
+          
+          echo "Final Terraform state after imports:"
+          terraform state list
+          echo "Import process completed"
+
+      - name: Verify imported resources
+        run: |
+          echo "Verifying resources exist in GCP:"
           echo "=== Cloud Functions ==="
           gcloud functions list --filter="name:*customer*" || true
           echo "=== PubSub Topics ==="
