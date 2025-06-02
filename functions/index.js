@@ -8,11 +8,11 @@ const pesquisarCustomerPorCpf = require('./functions/pesquisarCustomerPorCpf');
 const customerPubSubMessenger = require('./functions/customerPubSubMessenger');
 
 async function autenticar(req, res) {
-  const authHeader = req.headers.authorization;
+  const authHeader = req.headers.authorization || req.headers.Authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).send({ error: 'Token não informado.' });
-    throw new Error('Token não informado.');
+    return null;
   }
 
   const idToken = authHeader.split(' ')[1];
@@ -24,7 +24,7 @@ async function autenticar(req, res) {
   } catch (error) {
     console.error('Erro na autenticação:', error);
     res.status(403).send({ error: 'Token inválido.' });
-    throw new Error('Token inválido.');
+    return null;
   }
 }
 
